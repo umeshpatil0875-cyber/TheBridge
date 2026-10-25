@@ -108,7 +108,7 @@
             }
           ],
           "partialFingerprints": {
-            "securebridge/v1": "df0709274b3581c0a607325f903867c2170d4ed830cd2aa4a7b881129a3b1e43"
+            "securebridge/v1": "2b2c28ff29ed7067c4b6a8474924c0a26feba959f61f0616adf12a9f7c9f2940"
           },
           "properties": {
             "severity": "critical",
@@ -236,7 +236,7 @@
             }
           ],
           "partialFingerprints": {
-            "securebridge/v1": "9f2f22361788c25778e23e7906f80a53ec7b2f5e0c56c3365442542b1456005a"
+            "securebridge/v1": "3a98ed200680c9e97ce9ebdfc666cc111e9c5276cf52871d52e3257b57c76438"
           },
           "properties": {
             "severity": "high",
@@ -264,7 +264,7 @@
             }
           ],
           "partialFingerprints": {
-            "securebridge/v1": "81f9e4e2fb11340405a426bee4acebf9563c1eada48d1ef6250348a60d360979"
+            "securebridge/v1": "1c16d98cda63b9c4f97ad89e599402ac5f22b0b26b0c667d42ee3fb415719605"
           },
           "properties": {
             "severity": "high",
@@ -292,7 +292,7 @@
             }
           ],
           "partialFingerprints": {
-            "securebridge/v1": "3e37915e4ce3d408133e876f381012ca8154a21c01900c95b87ee393d75d2f3e"
+            "securebridge/v1": "e603e29557a38040fae6dd22afe3d9531ddd9deb6227bba998845ded0c2f8ec0"
           },
           "properties": {
             "severity": "high",
@@ -348,7 +348,7 @@
             }
           ],
           "partialFingerprints": {
-            "securebridge/v1": "0c20f1e2853c4c5563b2598660e9d1a8126ab5afeccfaa797138f51b9368518b"
+            "securebridge/v1": "e0edb9002ad2824347e2d4ee0b7b8f34779ad7b6b2311d14fd78ec4485e7f966"
           },
           "properties": {
             "severity": "high",
@@ -426,7 +426,7 @@
             }
           ],
           "partialFingerprints": {
-            "securebridge/v1": "d99fb4ed802343c1e5826b30d0b5d310b5702ac6c4a73138a1ebe2732bf165b5"
+            "securebridge/v1": "63b4b09269a82762021132080d858c4de50aaf2ca9cb72037c702198d71dd8d5"
           },
           "properties": {
             "severity": "medium",

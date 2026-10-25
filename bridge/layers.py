@@ -64,12 +64,15 @@ def _looks_like_kubernetes(path: str) -> bool:
 
 def classify(finding: Finding, root: str = ".") -> str:
     """Decide which layer a finding belongs to. Rules are simple and visible on purpose."""
-    if finding.category in ("secret", "code"):
-        return "source"
     if finding.category == "dependency":
         return "dependencies"
+    if finding.category == "secret":
+        return "source"  # a leaked credential is a source-code problem wherever it sits
 
-    # Configuration problems: the file name tells us which layer it is about.
+    # Code and configuration findings: the FILE tells us which layer it is about.
+    # This matters because one tool can report on several layers. A real run showed
+    # Semgrep flagging the Dockerfile and a Kubernetes file, and filing those under
+    # "Source code" was wrong. Looking at the file name first avoids that.
     path = finding.file.replace("\\", "/")
     lower = path.lower()
     base = os.path.basename(lower)

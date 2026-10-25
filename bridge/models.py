@@ -42,13 +42,27 @@ class Finding:
     def dedupe_key(self) -> tuple:
         """Two findings with the same key are the same problem seen twice.
 
-        LESSON 4: when several tools are connected, they often report the same
-        issue (two tools both spot the same leaked password). Without dedupe the
-        team sees the problem twice and loses trust in the report.
+        LESSON 4: when several tools are connected, they can report the same issue
+        (two tools both spot the same leaked password). Without dedupe the team sees
+        the problem twice and loses trust in the report.
+
+        LESSON 15 (learned from a real run): merging too eagerly is WORSE than not
+        merging. The first version keyed everything on file + line, so two different
+        rules firing on the same line looked like "the same problem", and one of them,
+        a privileged container, silently vanished from the report. Now only findings
+        that are provably the same are merged:
+          - a secret at the same place, even if two tools found it
+          - the same CVE in the same package, even if two tools found it
+          - anything else only when it is the same rule from the same tool at the
+            same place (an exact repeat)
+        Linking DIFFERENT rules or tools that describe one underlying issue needs a
+        hand-made mapping table; commercial ASPM products maintain exactly that.
         """
+        if self.category == "secret":
+            return ("secret", self.file, self.line)
         if self.category == "dependency":
             return ("dependency", self.package, self.rule_id)
-        return (self.category, self.file, self.line)
+        return (self.category, self.tool, self.rule_id, self.file, self.line)
 
     def to_dict(self) -> dict:
         return asdict(self)

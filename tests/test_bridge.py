@@ -81,6 +81,32 @@ class DedupeTests(unittest.TestCase):
         self.assertEqual((len(unique), dropped), (1, 1))
         self.assertEqual(unique[0].severity, "critical")
 
+    def test_two_different_rules_on_the_same_line_are_both_kept(self):
+        """Regression from a real run: the privileged-container finding (KSV-0017) was
+        merged away because another rule (KSV-0014) fired on the same file and line."""
+        a = Finding("trivy", "config", "KSV-0014", "high", "read-only fs", "k8s/deployment.yaml", 16)
+        b = Finding("trivy", "config", "KSV-0017", "high", "privileged", "k8s/deployment.yaml", 16)
+        unique, dropped = deduplicate([a, b])
+        self.assertEqual((len(unique), dropped), (2, 0))
+
+    def test_findings_without_a_line_number_in_one_file_stay_separate(self):
+        a = Finding("trivy", "config", "DS-0002", "high", "root user", "Dockerfile")
+        b = Finding("trivy", "config", "DS-0026", "low", "no healthcheck", "Dockerfile")
+        unique, dropped = deduplicate([a, b])
+        self.assertEqual((len(unique), dropped), (2, 0))
+
+    def test_an_exact_repeat_is_still_merged(self):
+        a = Finding("semgrep", "code", "rule-x", "high", "t", "app.py", 20)
+        b = Finding("semgrep", "code", "rule-x", "high", "t", "app.py", 20)
+        unique, dropped = deduplicate([a, b])
+        self.assertEqual((len(unique), dropped), (1, 1))
+
+    def test_same_cve_in_the_same_package_from_two_tools_is_merged(self):
+        a = Finding("trivy", "dependency", "CVE-1", "high", "t", "requirements.txt", package="flask")
+        b = Finding("other", "dependency", "CVE-1", "critical", "t", "requirements.txt", package="flask")
+        unique, dropped = deduplicate([a, b])
+        self.assertEqual((len(unique), dropped, unique[0].severity), (1, 1, "critical"))
+
     def test_different_cves_on_the_same_package_stay_separate(self):
         findings = adapters.parse_trivy(load("trivy"), APP)
         unique, dropped = deduplicate(findings)
@@ -150,6 +176,20 @@ class LayerTests(unittest.TestCase):
             (self.finding("config", "infra/main.tf"), "infrastructure"),
             (self.finding("config", "k8s/deployment.yaml"), "kubernetes"),
             (self.finding("config", ".github/workflows/ci.yml"), "pipeline"),
+        ]
+        for finding, expected in cases:
+            self.assertEqual(layers.classify(finding, APP), expected, finding.file)
+
+    def test_code_findings_in_non_source_files_go_to_the_layer_of_that_file(self):
+        """Regression from a real run: Semgrep findings in the Dockerfile and a
+        Kubernetes manifest were being filed under Source code."""
+        cases = [
+            (self.finding("code", "Dockerfile"), "container"),
+            (self.finding("code", "k8s/deployment.yaml"), "kubernetes"),
+            (self.finding("code", "infra/main.tf"), "infrastructure"),
+            (self.finding("code", ".github/workflows/ci.yml"), "pipeline"),
+            (self.finding("code", "app.py"), "source"),
+            (self.finding("secret", "Dockerfile"), "source"),
         ]
         for finding, expected in cases:
             self.assertEqual(layers.classify(finding, APP), expected, finding.file)
@@ -263,9 +303,21 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("continue-on-error", scan_step)
         self.assertNotIn("if", scan_step)
 
-    def test_scanner_versions_are_pinned(self):
+    def test_scanner_versions_are_empty_or_a_real_version_number(self):
         for key in ("GITLEAKS_VERSION", "TRIVY_VERSION"):
-            self.assertRegex(self.wf["env"][key], r"^\d+\.\d+\.\d+$")
+            self.assertRegex(self.wf["env"][key], r"^(\d+\.\d+\.\d+)?$")
+
+    def test_versions_used_are_always_printed_so_runs_can_be_pinned_later(self):
+        steps = {s.get("name", ""): s for s in self.wf["jobs"]["scan"]["steps"]}
+        shown = steps["Show scanner versions"]["run"]
+        for tool in ("gitleaks version", "trivy --version", "semgrep --version"):
+            self.assertIn(tool, shown)
+
+    def test_install_step_fails_loudly_and_lists_release_files(self):
+        steps = {s.get("name", ""): s for s in self.wf["jobs"]["scan"]["steps"]}
+        install = steps["Install the scanners"]["run"]
+        self.assertIn("set -euo pipefail", install)
+        self.assertIn("gh release view", install)  # prints real file names on failure
 
 
 class EndToEndTests(unittest.TestCase):

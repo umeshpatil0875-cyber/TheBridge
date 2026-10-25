@@ -83,7 +83,8 @@ because teams will argue about them and need to change them.
 If two tools report the same leaked password, the team sees two alarms for one problem.
 Teams that see noisy reports stop reading them. `deduplicate` merges findings that share
 a `dedupe_key` and keeps the more severe one. This is a small taste of what commercial
-ASPM tools do at large scale.
+ASPM tools do at large scale. **Read Lesson 15 too:** the first version of this merged
+too eagerly and hid a real finding.
 
 ## Lesson 5: never copy a secret into a report (`adapters.py`)
 
@@ -249,10 +250,19 @@ That one number is the whole mechanism.
    is exactly when you most want the report, so the publishing steps use `always()`.
    The scan step itself has no `always()` and no `continue-on-error`, because that would
    swallow the failure and nothing would ever be blocked. A test enforces this.
-3. **Pinned versions.** `GITLEAKS_VERSION` and `TRIVY_VERSION` are fixed numbers. If a
-   scanner updated overnight and changed its output, your pipeline could start failing
-   (or worse, passing) for no visible reason. Pinning makes changes deliberate. The
-   trade-off is that you must bump them yourself now and then.
+3. **Versions: latest first, then pin.** `GITLEAKS_VERSION` and `TRIVY_VERSION` start
+   empty, meaning "newest release", and the "Show scanner versions" step prints what was
+   actually used. Once a run is green, copy those numbers into the two variables. Pinning
+   matters because if a scanner updated overnight and changed its output, your pipeline
+   could start failing (or worse, passing) for no visible reason. Pinning makes changes
+   deliberate; the trade-off is that you bump them yourself now and then.
+
+   *What went wrong the first time (a real lesson):* the first version of this workflow
+   downloaded scanners from hand-built URLs with guessed version numbers. GitHub answered
+   "not found", `curl -f` exited with code 22, and the job turned red *before any scan ran*.
+   A red run can mean "the tool found problems" or "the tool never ran", and you must tell
+   them apart by opening the failed step. The install step now uses the GitHub CLI to pick
+   the file by name pattern, and if that fails it prints the real file names in the release.
 4. **Run summary.** The report is appended to `$GITHUB_STEP_SUMMARY`, so the layer table
    appears on the run's page without opening any file.
 5. **SARIF upload.** Lesson 9 pays off here: `upload-sarif` sends `report.sarif` to the
@@ -271,9 +281,10 @@ Without that, someone can merge a blocked pull request anyway.
 - The workflow has never run on GitHub. It is validated as YAML, its safety properties are
   pinned by tests, and the scan step was simulated locally, but the first real run may
   hit a snag. Read the failing step's log; it usually says exactly what is wrong.
-- The scanner versions and download URLs follow each project's usual naming but were not
-  verified. If "Install the scanners" fails with a 404, check the project's Releases page
-  for the right version and file name.
+- The file-name patterns in "Install the scanners" (`*linux_x64.tar.gz` for Gitleaks,
+  `*Linux-64bit.tar.gz` for Trivy) are based on those projects' usual naming and were only
+  tested against a stand-in for the GitHub CLI. If the step fails, its log lists the real
+  file names, and you only need to adjust the pattern.
 - Semgrep's `--config auto` downloads rules from the internet while it runs. That works
   on GitHub's machines, and would not work on a locked-down network.
 - Uploading to the Security tab is free on public repositories. On private repositories
@@ -283,6 +294,47 @@ Without that, someone can merge a blocked pull request anyway.
 **Try it** (see README, "Run it on GitHub"): push the project, open the Actions tab and
 watch the run. It should turn red, because the sample app is broken on purpose. Then
 change the policy so everything passes (or fix the flaws) and watch it turn green.
+
+## Lesson 15: real output found bugs my samples could not
+
+The first GitHub run used the real scanners, and its report exposed three problems.
+This is the most valuable lesson in the project, because it is how real tools get built.
+
+**1. A finding vanished (dedupe was too eager).** The real Trivy run reports many
+Kubernetes problems. The first version of `dedupe_key` was "category + file + line", so
+two different rules on the same line looked like one problem, and the planted
+*privileged container* finding was silently dropped. The report even said "21 duplicates
+merged", which sounded tidy and hid the damage. The fix: only merge what is provably the
+same (a secret at the same place, the same CVE in the same package, an exact repeat of
+one rule). Two regression tests now pin this down.
+
+> General rule: in a security tool, wrongly merging is worse than wrongly keeping. A
+> noisy report is annoying; a report that hides a real problem is dangerous.
+
+**2. Findings were filed under the wrong layer.** Semgrep also inspects Dockerfiles and
+Kubernetes files, and my layer rules put every Semgrep finding under "Source code". The
+real report listed a Dockerfile finding and three Kubernetes findings there. The fix:
+look at the *file* first. A test covers each case. Note this is why one tool can span
+several layers, and why layers are decided by the bridge, not by the tool.
+
+**3. An open question: Gitleaks reported 0 findings**, but the sample app contains a fake
+token (`ghp_...` in `config.py`). Possible reasons, to check one by one:
+
+- The token line in your copy of `config.py` was changed or removed (for example to get
+  past GitHub's push protection). Open the file in your repo and look.
+- This Gitleaks version's rules or allowlist treat the made-up token as not worth
+  reporting. A made-up token can look "too fake" to a smart rule.
+- A real command-line problem in `bridge/runner.py`.
+
+To tell these apart, open the run's "Run SecureBridge" step. If `config.py` still has the
+token, the most useful experiment is to run Gitleaks yourself on that folder (see its
+`--help`) and compare. A scanner that reports "0 findings" when you know there is one is a
+**silent failure**, the most dangerous kind. It is why real teams keep a "canary", a
+planted secret that must always be found, and alarm if it is not. Adding one to this
+bridge is a good next improvement.
+
+**Why demo mode could not show any of this:** the saved sample outputs only contained
+what I expected to see. Test against the real thing as early as you can.
 
 ---
 
