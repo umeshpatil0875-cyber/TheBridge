@@ -206,6 +206,68 @@ def load_policy_file():
     return load_policy(os.path.join(ROOT, "policy.json"))
 
 
+class SarifPathTests(unittest.TestCase):
+    def test_prefix_makes_paths_relative_to_the_repo_root(self):
+        finding = Finding("t", "code", "r", "high", "t", "config.py", 5)
+        uri = lambda text: json.loads(text)["runs"][0]["results"][0]["locations"][0][
+            "physicalLocation"]["artifactLocation"]["uri"]
+        self.assertEqual(uri(report.to_sarif([finding])), "config.py")
+        self.assertEqual(uri(report.to_sarif([finding], "sample-app")), "sample-app/config.py")
+
+    def test_cli_derives_the_prefix_from_where_it_was_started(self):
+        with tempfile.TemporaryDirectory() as out, \
+                mock.patch("bridge.cli.os.getcwd", return_value=ROOT):
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                cli.main(["scan", APP, "--demo", "--out", out])
+            with open(os.path.join(out, "report.sarif")) as handle:
+                results = json.load(handle)["runs"][0]["results"]
+        uris = {r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in results}
+        self.assertIn("sample-app/config.py", uris)
+        self.assertTrue(all(u.startswith("sample-app/") for u in uris))
+
+
+class WorkflowTests(unittest.TestCase):
+    """Guards the pipeline file. We cannot run GitHub from here, but we can make sure
+    nobody breaks its safety properties by accident. Skipped if PyYAML is missing."""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            import yaml
+        except ImportError:
+            raise unittest.SkipTest("PyYAML not installed")
+        path = os.path.join(ROOT, ".github", "workflows", "securebridge.yml")
+        with open(path) as handle:
+            cls.text = handle.read()
+            cls.wf = yaml.safe_load(cls.text)
+
+    def test_default_permissions_are_read_only(self):
+        self.assertEqual(self.wf["permissions"], {"contents": "read"})
+
+    def test_only_the_scan_job_may_write_security_events(self):
+        self.assertNotIn("permissions", self.wf["jobs"]["test"])
+        self.assertEqual(self.wf["jobs"]["scan"]["permissions"]["security-events"], "write")
+
+    def test_scan_waits_for_the_tests(self):
+        self.assertEqual(self.wf["jobs"]["scan"]["needs"], "test")
+
+    def test_publishing_steps_still_run_when_the_scan_blocks(self):
+        steps = {s.get("name", ""): s for s in self.wf["jobs"]["scan"]["steps"]}
+        for name in ("Show the report in the run summary",
+                     "Upload findings to the Security tab",
+                     "Keep the reports as a download"):
+            self.assertIn("always()", steps[name]["if"], name)
+        # The scan step itself must NOT swallow its failure, or blocking would do nothing.
+        scan_step = steps["Run SecureBridge"]
+        self.assertNotIn("continue-on-error", scan_step)
+        self.assertNotIn("if", scan_step)
+
+    def test_scanner_versions_are_pinned(self):
+        for key in ("GITLEAKS_VERSION", "TRIVY_VERSION"):
+            self.assertRegex(self.wf["env"][key], r"^\d+\.\d+\.\d+$")
+
+
 class EndToEndTests(unittest.TestCase):
     def run_cli(self, argv):
         buffer = StringIO()

@@ -1,7 +1,91 @@
 {
   "verdict": "blocked",
-  "blocking_count": 12,
-  "duplicates_merged": 6,
+  "blocking_count": 15,
+  "first_defective_layer": "source",
+  "layers": [
+    {
+      "layer": "source",
+      "name": "Source code",
+      "status": "DEFECTIVE",
+      "findings": 10,
+      "blocking": 5,
+      "worst_severity": "high",
+      "checked_by": [
+        "gitleaks",
+        "semgrep"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "dependencies",
+      "name": "Dependencies",
+      "status": "DEFECTIVE",
+      "findings": 17,
+      "blocking": 6,
+      "worst_severity": "critical",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "pipeline",
+      "name": "CI/CD pipeline",
+      "status": "not scanned",
+      "findings": 0,
+      "blocking": 0,
+      "worst_severity": null,
+      "checked_by": [],
+      "gap": "no scanner for this layer yet"
+    },
+    {
+      "layer": "container",
+      "name": "Container image",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "infrastructure",
+      "name": "Infrastructure as code",
+      "status": "DEFECTIVE",
+      "findings": 3,
+      "blocking": 1,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "kubernetes",
+      "name": "Kubernetes",
+      "status": "DEFECTIVE",
+      "findings": 3,
+      "blocking": 2,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "runtime",
+      "name": "Running system",
+      "status": "not scanned",
+      "findings": 0,
+      "blocking": 0,
+      "worst_severity": null,
+      "checked_by": [],
+      "gap": "no scanner for this layer yet"
+    }
+  ],
+  "duplicates_merged": 21,
   "scanners": [
     {
       "name": "gitleaks",
@@ -11,12 +95,12 @@
     {
       "name": "semgrep",
       "status": "ok",
-      "detail": "11 finding(s)"
+      "detail": "14 finding(s)"
     },
     {
       "name": "trivy",
       "status": "ok",
-      "detail": "19 finding(s)"
+      "detail": "40 finding(s)"
     }
   ],
   "findings": [
@@ -30,7 +114,8 @@
       "line": null,
       "package": "pyyaml",
       "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-14343",
-      "fix": "Upgrade pyyaml to 5.4 or newer."
+      "fix": "Upgrade pyyaml to 5.4 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -42,7 +127,8 @@
       "line": null,
       "package": "pyyaml",
       "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-1747",
-      "fix": "Upgrade pyyaml to 5.3.1 or newer."
+      "fix": "Upgrade pyyaml to 5.3.1 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -54,7 +140,8 @@
       "line": null,
       "package": "",
       "description": "Running containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile.",
-      "fix": "Add 'USER <non root user name>' line to the Dockerfile"
+      "fix": "Add 'USER <non root user name>' line to the Dockerfile",
+      "layer": "container"
     },
     {
       "tool": "semgrep",
@@ -66,7 +153,8 @@
       "line": 6,
       "package": "",
       "description": "Weakness type: CWE-250: Execution with Unnecessary Privileges.",
-      "fix": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'."
+      "fix": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+      "layer": "source"
     },
     {
       "tool": "semgrep",
@@ -78,7 +166,8 @@
       "line": 20,
       "package": "",
       "description": "Weakness type: CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes.",
-      "fix": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries."
+      "fix": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries.",
+      "layer": "source"
     },
     {
       "tool": "semgrep",
@@ -90,7 +179,8 @@
       "line": 21,
       "package": "",
       "description": "Weakness type: CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection').",
-      "fix": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option."
+      "fix": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.",
+      "layer": "source"
     },
     {
       "tool": "semgrep",
@@ -102,7 +192,8 @@
       "line": 28,
       "package": "",
       "description": "Weakness type: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection').",
-      "fix": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands."
+      "fix": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+      "layer": "source"
     },
     {
       "tool": "gitleaks",
@@ -114,7 +205,47 @@
       "line": 5,
       "package": "",
       "description": "A credential-like value is stored in source code. (The value itself is intentionally left out of this report.)",
-      "fix": "Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead."
+      "fix": "Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead.",
+      "layer": "source"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "AWS-0107",
+      "severity": "high",
+      "title": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.",
+      "file": "infra/main.tf",
+      "line": 8,
+      "package": "",
+      "description": "Security groups provide stateful filtering of ingress and egress network traffic to AWS\nresources. It is recommended that no security group allows unrestricted ingress access to\nremote server administration ports, such as SSH to port 22 and RDP to port 3389.\n",
+      "fix": "Set a more restrictive CIDR range",
+      "layer": "infrastructure"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "KSV-0118",
+      "severity": "high",
+      "title": "Default security context configured",
+      "file": "k8s/deployment.yaml",
+      "line": 14,
+      "package": "",
+      "description": "Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.",
+      "fix": "To enhance security, it is strongly recommended not to rely on the default security context. Instead, it is advisable to explicitly define the required security parameters (such as runAsNonRoot, capabilities, readOnlyRootFilesystem, etc.) within the security context.",
+      "layer": "kubernetes"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "KSV-0014",
+      "severity": "high",
+      "title": "Root file system is not read-only",
+      "file": "k8s/deployment.yaml",
+      "line": 16,
+      "package": "",
+      "description": "An immutable root file system prevents applications from writing to their local disk. This can limit intrusions, as attackers will not be able to tamper with the file system or write foreign executables to disk.",
+      "fix": "Change 'containers[].securityContext.readOnlyRootFilesystem' to 'true'.",
+      "layer": "kubernetes"
     },
     {
       "tool": "trivy",
@@ -126,7 +257,8 @@
       "line": null,
       "package": "flask",
       "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2018-1000656",
-      "fix": "Upgrade flask to 0.12.3 or newer."
+      "fix": "Upgrade flask to 0.12.3 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -138,7 +270,8 @@
       "line": null,
       "package": "flask",
       "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2019-1010083",
-      "fix": "Upgrade flask to 1.0 or newer."
+      "fix": "Upgrade flask to 1.0 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -150,7 +283,8 @@
       "line": null,
       "package": "flask",
       "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2023-30861",
-      "fix": "Upgrade flask to 2.3.2, 2.2.5 or newer."
+      "fix": "Upgrade flask to 2.3.2, 2.2.5 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -162,7 +296,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906",
-      "fix": "Upgrade jinja2 to 2.10.1 or newer."
+      "fix": "Upgrade jinja2 to 2.10.1 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -174,7 +309,8 @@
       "line": null,
       "package": "requests",
       "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2018-18074",
-      "fix": "Upgrade requests to 2.20.0 or newer."
+      "fix": "Upgrade requests to 2.20.0 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "semgrep",
@@ -186,7 +322,8 @@
       "line": 17,
       "package": "",
       "description": "Weakness type: CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection').",
-      "fix": "User-controlled data from a request is passed to 'execute()'. This could lead to a SQL injection and therefore protected information could be leaked. Instead, use django's QuerySets, which are built with query parameterization and therefore not vulnerable to sql injection. For example, you could use `Entry.objects.filter(date=2006)`."
+      "fix": "User-controlled data from a request is passed to 'execute()'. This could lead to a SQL injection and therefore protected information could be leaked. Instead, use django's QuerySets, which are built with query parameterization and therefore not vulnerable to sql injection. For example, you could use `Entry.objects.filter(date=2006)`.",
+      "layer": "source"
     },
     {
       "tool": "semgrep",
@@ -198,7 +335,34 @@
       "line": 33,
       "package": "",
       "description": "Weakness type: CWE-668: Exposure of Resource to Wrong Sphere.",
-      "fix": "Running flask app with host 0.0.0.0 could expose the server publicly."
+      "fix": "Running flask app with host 0.0.0.0 could expose the server publicly.",
+      "layer": "source"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "yaml.kubernetes.security.allow-privilege-escalation.allow-privilege-escalation",
+      "severity": "medium",
+      "title": "allow privilege escalation",
+      "file": "k8s/deployment.yaml",
+      "line": 18,
+      "package": "",
+      "description": "Weakness type: CWE-732: Incorrect Permission Assignment for Critical Resource.",
+      "fix": "In Kubernetes, each pod runs in its own isolated environment with its own set of security policies. However, certain container images may contain `setuid` or `setgid` binaries that could allow an attacker to perform privilege escalation and gain access to sensitive resources. To mitigate this risk, it's recommended to add a `securityContext` to the container in the pod, with the parameter `allowPrivilegeEscalation` set to `false`. This will prevent the container from running any privileged processes and limit the impact of any potential attacks. By adding the `allowPrivilegeEscalation` parameter to your the `securityContext`, you can help to ensure that your containerized applications are more secure and less vulnerable to privilege escalation attacks.",
+      "layer": "source"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "yaml.kubernetes.security.privileged-container.privileged-container",
+      "severity": "medium",
+      "title": "privileged container",
+      "file": "k8s/deployment.yaml",
+      "line": 20,
+      "package": "",
+      "description": "Weakness type: CWE-250: Execution with Unnecessary Privileges.",
+      "fix": "Container or pod is running in privileged mode. This grants the container the equivalent of root capabilities on the host machine. This can lead to container escapes, privilege escalation, and other security concerns. Remove the 'privileged' key to disable this capability.",
+      "layer": "source"
     },
     {
       "tool": "trivy",
@@ -210,7 +374,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2020-28493",
-      "fix": "Upgrade jinja2 to 2.11.3 or newer."
+      "fix": "Upgrade jinja2 to 2.11.3 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -222,7 +387,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2024-22195",
-      "fix": "Upgrade jinja2 to 3.1.3 or newer."
+      "fix": "Upgrade jinja2 to 3.1.3 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -234,7 +400,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2024-34064",
-      "fix": "Upgrade jinja2 to 3.1.4 or newer."
+      "fix": "Upgrade jinja2 to 3.1.4 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -246,7 +413,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2024-56326",
-      "fix": "Upgrade jinja2 to 3.1.5 or newer."
+      "fix": "Upgrade jinja2 to 3.1.5 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -258,7 +426,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2025-27516",
-      "fix": "Upgrade jinja2 to 3.1.6 or newer."
+      "fix": "Upgrade jinja2 to 3.1.6 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -270,7 +439,8 @@
       "line": null,
       "package": "requests",
       "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2023-32681",
-      "fix": "Upgrade requests to 2.31.0 or newer."
+      "fix": "Upgrade requests to 2.31.0 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -282,7 +452,8 @@
       "line": null,
       "package": "requests",
       "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2024-35195",
-      "fix": "Upgrade requests to 2.32.0 or newer."
+      "fix": "Upgrade requests to 2.32.0 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -294,7 +465,8 @@
       "line": null,
       "package": "requests",
       "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2024-47081",
-      "fix": "Upgrade requests to 2.32.4 or newer."
+      "fix": "Upgrade requests to 2.32.4 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -306,7 +478,60 @@
       "line": null,
       "package": "requests",
       "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2026-25645",
-      "fix": "Upgrade requests to 2.33.0 or newer."
+      "fix": "Upgrade requests to 2.33.0 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "AWS-0099",
+      "severity": "low",
+      "title": "Missing description for security group.",
+      "file": "infra/main.tf",
+      "line": 2,
+      "package": "",
+      "description": "Security groups should include a description for auditing purposes.\n\nSimplifies auditing, debugging, and managing security groups.\n",
+      "fix": "Add descriptions for all security groups",
+      "layer": "infrastructure"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "AWS-0124",
+      "severity": "low",
+      "title": "Missing description for security group rule.",
+      "file": "infra/main.tf",
+      "line": 4,
+      "package": "",
+      "description": "Security group rules should include a description for auditing purposes.\n\nSimplifies auditing, debugging, and managing security groups.\n",
+      "fix": "Add descriptions for all security groups rules",
+      "layer": "infrastructure"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "KSV-0110",
+      "severity": "low",
+      "title": "Workloads in the default namespace",
+      "file": "k8s/deployment.yaml",
+      "line": 3,
+      "package": "",
+      "description": "Checks whether a workload is running in the default namespace.",
+      "fix": "Set 'metadata.namespace' to a non-default namespace.",
+      "layer": "kubernetes"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "yaml.kubernetes.security.run-as-non-root.run-as-non-root",
+      "severity": "low",
+      "title": "run as non root",
+      "file": "k8s/deployment.yaml",
+      "line": 14,
+      "package": "",
+      "description": "Weakness type: CWE-250: Execution with Unnecessary Privileges.",
+      "fix": "When running containers in Kubernetes, it's important to ensure that they  are properly secured to prevent privilege escalation attacks.  One potential vulnerability is when a container is allowed to run  applications as the root user, which could allow an attacker to gain  access to sensitive resources. To mitigate this risk, it's recommended to  add a `securityContext` to the container, with the parameter `runAsNonRoot`  set to `true`. This will ensure that the container runs as a non-root user,  limiting the damage that could be caused by any potential attacks. By  adding a `securityContext` to the container in your Kubernetes pod, you can  help to ensure that your containerized applications are more secure and  less vulnerable to privilege escalation attacks.",
+      "layer": "source"
     },
     {
       "tool": "trivy",
@@ -318,7 +543,8 @@
       "line": null,
       "package": "flask",
       "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2026-27205",
-      "fix": "Upgrade flask to 3.1.3 or newer."
+      "fix": "Upgrade flask to 3.1.3 or newer.",
+      "layer": "dependencies"
     }
   ]
 }

@@ -1,0 +1,103 @@
+# SecureBridge pipeline. Read LESSONS.md, Lesson 14, for a line-by-line explanation.
+#
+# What it does on every push to main and every pull request:
+#   1. "test" job: runs the project's own tests, so a broken engine is caught first.
+#   2. "scan" job: installs the scanners, runs the bridge, publishes the results, and
+#      FAILS the job when the policy verdict is BLOCKED (the bridge exits with code 1).
+
+name: SecureBridge
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # lets you start it by hand from the Actions tab
+
+# Least privilege: by default the workflow may only READ the repository.
+# The scan job is granted one extra permission below, and only that job.
+permissions:
+  contents: read
+
+env:
+  # Folder to scan. This demo repo scans the intentionally vulnerable sample app.
+  # For a real project, change it to "." to scan the whole repository.
+  SCAN_PATH: sample-app
+  # Scanner versions are pinned so a new release cannot silently change results.
+  # CHECK THESE against each project's releases page and bump them when needed.
+  GITLEAKS_VERSION: "8.30.1"
+  TRIVY_VERSION: "0.58.0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the project's tests
+        run: python -m unittest discover -s tests -v
+
+  scan:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # needed only to upload SARIF to the Security tab
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the scanners
+        run: |
+          set -euo pipefail
+          pip install semgrep
+          mkdir -p "$HOME/bin"
+
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz -C "$HOME/bin" gitleaks
+
+          curl -fsSL -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz -C "$HOME/bin" trivy
+
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Show scanner versions
+        run: |
+          gitleaks version
+          trivy --version
+          semgrep --version
+
+      # If the policy blocks, this step exits with code 1 and the job turns red.
+      # The steps below use "if: always()" so results are still published.
+      - name: Run SecureBridge
+        run: python -m bridge scan "$SCAN_PATH" --out out
+
+      - name: Show the report in the run summary
+        if: always()
+        run: |
+          if [ -f out/report.md ]; then cat out/report.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      # Findings appear in the repository's Security tab (Code scanning).
+      # continue-on-error: on private repositories without GitHub code scanning this
+      # upload is refused, and that must not hide the real verdict above.
+      - name: Upload findings to the Security tab
+        if: always() && hashFiles('out/report.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: out/report.sarif
+          category: securebridge
+
+      - name: Keep the reports as a download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: securebridge-reports
+          path: out/
+          if-no-files-found: ignore

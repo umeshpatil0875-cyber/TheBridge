@@ -119,13 +119,17 @@ _SARIF_LEVEL = {"critical": "error", "high": "error", "medium": "warning",
                 "low": "note", "info": "note"}
 
 
-def to_sarif(findings: list[Finding]) -> str:
+def to_sarif(findings: list[Finding], prefix: str = "") -> str:
+    """`prefix` is the scanned folder's path from the repository root (for example
+    "sample-app"). GitHub needs paths relative to the repo root to link a finding to
+    the right file, but our findings are relative to the scanned folder."""
     rules: dict[str, dict] = {}
     results = []
     for f in _sorted(findings):
         rule_id = f"{f.tool}/{f.rule_id}"
         rules.setdefault(rule_id, {"id": rule_id, "shortDescription": {"text": f.title}})
-        location = {"artifactLocation": {"uri": f.file}}
+        uri = f"{prefix}/{f.file}" if prefix else f.file
+        location = {"artifactLocation": {"uri": uri}}
         if f.line:
             location["region"] = {"startLine": f.line}
         fingerprint = hashlib.sha256(

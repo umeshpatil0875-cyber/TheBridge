@@ -56,6 +56,24 @@
               }
             },
             {
+              "id": "trivy/AWS-0107",
+              "shortDescription": {
+                "text": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address."
+              }
+            },
+            {
+              "id": "trivy/KSV-0118",
+              "shortDescription": {
+                "text": "Default security context configured"
+              }
+            },
+            {
+              "id": "trivy/KSV-0014",
+              "shortDescription": {
+                "text": "Root file system is not read-only"
+              }
+            },
+            {
               "id": "trivy/CVE-2018-1000656",
               "shortDescription": {
                 "text": "python-flask: Denial of Service via crafted JSON file"
@@ -95,6 +113,18 @@
               "id": "semgrep/python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host",
               "shortDescription": {
                 "text": "avoid_app_run_with_bad_host"
+              }
+            },
+            {
+              "id": "semgrep/yaml.kubernetes.security.allow-privilege-escalation.allow-privilege-escalation",
+              "shortDescription": {
+                "text": "allow privilege escalation"
+              }
+            },
+            {
+              "id": "semgrep/yaml.kubernetes.security.privileged-container.privileged-container",
+              "shortDescription": {
+                "text": "privileged container"
               }
             },
             {
@@ -152,6 +182,30 @@
               }
             },
             {
+              "id": "trivy/AWS-0099",
+              "shortDescription": {
+                "text": "Missing description for security group."
+              }
+            },
+            {
+              "id": "trivy/AWS-0124",
+              "shortDescription": {
+                "text": "Missing description for security group rule."
+              }
+            },
+            {
+              "id": "trivy/KSV-0110",
+              "shortDescription": {
+                "text": "Workloads in the default namespace"
+              }
+            },
+            {
+              "id": "semgrep/yaml.kubernetes.security.run-as-non-root.run-as-non-root",
+              "shortDescription": {
+                "text": "run as non root"
+              }
+            },
+            {
               "id": "trivy/CVE-2026-27205",
               "shortDescription": {
                 "text": "flask: Flask: Information disclosure via improper caching of session data"
@@ -182,7 +236,8 @@
           "properties": {
             "severity": "critical",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -206,7 +261,8 @@
           "properties": {
             "severity": "critical",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -230,7 +286,8 @@
           "properties": {
             "severity": "high",
             "category": "config",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "container"
           }
         },
         {
@@ -257,7 +314,8 @@
           "properties": {
             "severity": "high",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -284,7 +342,8 @@
           "properties": {
             "severity": "high",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -311,7 +370,8 @@
           "properties": {
             "severity": "high",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -338,7 +398,8 @@
           "properties": {
             "severity": "high",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -365,7 +426,92 @@
           "properties": {
             "severity": "high",
             "category": "secret",
-            "tool": "gitleaks"
+            "tool": "gitleaks",
+            "layer": "source"
+          }
+        },
+        {
+          "ruleId": "trivy/AWS-0107",
+          "level": "error",
+          "message": {
+            "text": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.. Security groups provide stateful filtering of ingress and egress network traffic to AWS\nresources. It is recommended that no security group allows unrestricted ingress access to\nremote server administration ports, such as SSH to port 22 and RDP to port 3389.\n Fix: Set a more restrictive CIDR range"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "infra/main.tf"
+                },
+                "region": {
+                  "startLine": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "4558f799727111cf1617f27e4264e086c72ea19b0c599cf067ebe550b37b7f03"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "infrastructure"
+          }
+        },
+        {
+          "ruleId": "trivy/KSV-0118",
+          "level": "error",
+          "message": {
+            "text": "Default security context configured. Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access. Fix: To enhance security, it is strongly recommended not to rely on the default security context. Instead, it is advisable to explicitly define the required security parameters (such as runAsNonRoot, capabilities, readOnlyRootFilesystem, etc.) within the security context."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "82db806b22c0c82c29cdaf2c335d292028b8a0f6c85c36de98ea24e5595f6e5c"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "kubernetes"
+          }
+        },
+        {
+          "ruleId": "trivy/KSV-0014",
+          "level": "error",
+          "message": {
+            "text": "Root file system is not read-only. An immutable root file system prevents applications from writing to their local disk. This can limit intrusions, as attackers will not be able to tamper with the file system or write foreign executables to disk. Fix: Change 'containers[].securityContext.readOnlyRootFilesystem' to 'true'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 16
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "7c27070f25b1b448c90de98c4d730eaeb7bd04006508f05b01bce66ec4453135"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "kubernetes"
           }
         },
         {
@@ -389,7 +535,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -413,7 +560,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -437,7 +585,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -461,7 +610,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -485,7 +635,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -512,7 +663,8 @@
           "properties": {
             "severity": "medium",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -539,7 +691,64 @@
           "properties": {
             "severity": "medium",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
+          }
+        },
+        {
+          "ruleId": "semgrep/yaml.kubernetes.security.allow-privilege-escalation.allow-privilege-escalation",
+          "level": "warning",
+          "message": {
+            "text": "allow privilege escalation. Weakness type: CWE-732: Incorrect Permission Assignment for Critical Resource. Fix: In Kubernetes, each pod runs in its own isolated environment with its own set of security policies. However, certain container images may contain `setuid` or `setgid` binaries that could allow an attacker to perform privilege escalation and gain access to sensitive resources. To mitigate this risk, it's recommended to add a `securityContext` to the container in the pod, with the parameter `allowPrivilegeEscalation` set to `false`. This will prevent the container from running any privileged processes and limit the impact of any potential attacks. By adding the `allowPrivilegeEscalation` parameter to your the `securityContext`, you can help to ensure that your containerized applications are more secure and less vulnerable to privilege escalation attacks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "07208dcccde3fdbb1ff3366782a6c18d9ed6e5eb64d732550eddfa1ad45ffdea"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "code",
+            "tool": "semgrep",
+            "layer": "source"
+          }
+        },
+        {
+          "ruleId": "semgrep/yaml.kubernetes.security.privileged-container.privileged-container",
+          "level": "warning",
+          "message": {
+            "text": "privileged container. Weakness type: CWE-250: Execution with Unnecessary Privileges. Fix: Container or pod is running in privileged mode. This grants the container the equivalent of root capabilities on the host machine. This can lead to container escapes, privilege escalation, and other security concerns. Remove the 'privileged' key to disable this capability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "389e2b643776214c967a349624f8cc6cba6ff140e0efdfccd98e9939e1772d14"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "code",
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -563,7 +772,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -587,7 +797,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -611,7 +822,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -635,7 +847,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -659,7 +872,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -683,7 +897,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -707,7 +922,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -731,7 +947,8 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -755,7 +972,120 @@
           "properties": {
             "severity": "medium",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
+          }
+        },
+        {
+          "ruleId": "trivy/AWS-0099",
+          "level": "note",
+          "message": {
+            "text": "Missing description for security group.. Security groups should include a description for auditing purposes.\n\nSimplifies auditing, debugging, and managing security groups.\n Fix: Add descriptions for all security groups"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "infra/main.tf"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "8f73e505f0cd35cdd2d1ce332521013a4632b44e5ec8d78bc11392975f1bb98a"
+          },
+          "properties": {
+            "severity": "low",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "infrastructure"
+          }
+        },
+        {
+          "ruleId": "trivy/AWS-0124",
+          "level": "note",
+          "message": {
+            "text": "Missing description for security group rule.. Security group rules should include a description for auditing purposes.\n\nSimplifies auditing, debugging, and managing security groups.\n Fix: Add descriptions for all security groups rules"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "infra/main.tf"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "25dc2e740b75408595ca870e8b2878c93b6095bebf5e70c6bd8ff0ee5f938f04"
+          },
+          "properties": {
+            "severity": "low",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "infrastructure"
+          }
+        },
+        {
+          "ruleId": "trivy/KSV-0110",
+          "level": "note",
+          "message": {
+            "text": "Workloads in the default namespace. Checks whether a workload is running in the default namespace. Fix: Set 'metadata.namespace' to a non-default namespace."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "4df179593d5bfa74bb210af75417c3d4961bef7f91a15a286fa949d013bf28b6"
+          },
+          "properties": {
+            "severity": "low",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "kubernetes"
+          }
+        },
+        {
+          "ruleId": "semgrep/yaml.kubernetes.security.run-as-non-root.run-as-non-root",
+          "level": "note",
+          "message": {
+            "text": "run as non root. Weakness type: CWE-250: Execution with Unnecessary Privileges. Fix: When running containers in Kubernetes, it's important to ensure that they  are properly secured to prevent privilege escalation attacks.  One potential vulnerability is when a container is allowed to run  applications as the root user, which could allow an attacker to gain  access to sensitive resources. To mitigate this risk, it's recommended to  add a `securityContext` to the container, with the parameter `runAsNonRoot`  set to `true`. This will ensure that the container runs as a non-root user,  limiting the damage that could be caused by any potential attacks. By  adding a `securityContext` to the container in your Kubernetes pod, you can  help to ensure that your containerized applications are more secure and  less vulnerable to privilege escalation attacks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "c3320f104a4ab539d09994a04114c48b12f8b16b75a298d44208198a34142776"
+          },
+          "properties": {
+            "severity": "low",
+            "category": "code",
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -779,7 +1109,8 @@
           "properties": {
             "severity": "low",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         }
       ]

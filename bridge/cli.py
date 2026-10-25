@@ -22,6 +22,18 @@ TOOLS = ["gitleaks", "semgrep", "trivy"]
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _sarif_prefix(root: str) -> str:
+    """Where the scanned folder sits inside the folder we were started from.
+
+    In a pipeline we start at the repository root and scan a sub-folder, so
+    "sample-app" is the prefix. If we scan the root itself, or a folder outside the
+    current directory, there is no prefix."""
+    relative = os.path.relpath(root, os.getcwd()).replace(os.sep, "/")
+    if relative == "." or relative.startswith(".."):
+        return ""
+    return relative
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="bridge", description="SecureBridge phase 1")
     parser.add_argument("command", choices=["scan"])
@@ -68,7 +80,7 @@ def main(argv=None) -> int:
     outputs = {
         "report.md": report.to_markdown(runs, findings, decision, dropped),
         "report.json": report.to_json(runs, findings, decision, dropped),
-        "report.sarif": report.to_sarif(findings),
+        "report.sarif": report.to_sarif(findings, _sarif_prefix(root)),
     }
     for name, text in outputs.items():
         with open(os.path.join(args.out, name), "w") as handle:

@@ -99,7 +99,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "infra/main.tf"
+                  "uri": "sample-app/infra/main.tf"
                 },
                 "region": {
                   "startLine": 5
@@ -127,7 +127,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "requirements.txt"
+                  "uri": "sample-app/requirements.txt"
                 }
               }
             }
@@ -152,7 +152,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "requirements.txt"
+                  "uri": "sample-app/requirements.txt"
                 }
               }
             }
@@ -177,7 +177,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "requirements.txt"
+                  "uri": "sample-app/requirements.txt"
                 }
               }
             }
@@ -202,7 +202,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "requirements.txt"
+                  "uri": "sample-app/requirements.txt"
                 }
               }
             }
@@ -227,7 +227,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "Dockerfile"
+                  "uri": "sample-app/Dockerfile"
                 },
                 "region": {
                   "startLine": 1
@@ -255,7 +255,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "app.py"
+                  "uri": "sample-app/app.py"
                 },
                 "region": {
                   "startLine": 20
@@ -283,7 +283,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "app.py"
+                  "uri": "sample-app/app.py"
                 },
                 "region": {
                   "startLine": 28
@@ -311,7 +311,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "config.py"
+                  "uri": "sample-app/config.py"
                 },
                 "region": {
                   "startLine": 5
@@ -339,7 +339,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "k8s/deployment.yaml"
+                  "uri": "sample-app/k8s/deployment.yaml"
                 },
                 "region": {
                   "startLine": 16
@@ -367,7 +367,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "requirements.txt"
+                  "uri": "sample-app/requirements.txt"
                 }
               }
             }
@@ -392,7 +392,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "requirements.txt"
+                  "uri": "sample-app/requirements.txt"
                 }
               }
             }
@@ -417,7 +417,7 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "app.py"
+                  "uri": "sample-app/app.py"
                 },
                 "region": {
                   "startLine": 33

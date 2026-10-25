@@ -215,6 +215,75 @@ at. The Kubernetes layer here means manifest files in the repo, not a live clust
 the container layer means the Dockerfile, not a built image. Scanning the live cluster
 and built images comes later.
 
+## Lesson 14: the pipeline (`.github/workflows/securebridge.yml`)
+
+Until now you ran the bridge by hand, so it only worked when you remembered. A **pipeline**
+runs it for you, automatically, on every change. GitHub's pipeline tool is called
+**GitHub Actions**, and it is configured with a YAML file inside `.github/workflows/`.
+Read the workflow file top to bottom with this lesson beside it.
+
+**The skeleton**
+
+- `on:` says when it runs: on every push to `main`, on every pull request (a proposed
+  change waiting for review), and by hand from the Actions tab (`workflow_dispatch`).
+- `jobs:` are groups of steps, each running on a fresh temporary Linux machine
+  (`runs-on: ubuntu-latest`). Nothing from one job carries into the next, which is why
+  the scan job installs its own scanners.
+- `needs: test` makes the scan wait for the test job. If the engine itself is broken,
+  there is no point trusting its verdict.
+- `uses:` borrows a ready-made step someone else wrote, such as `actions/checkout@v4`,
+  which downloads your code onto the machine.
+
+**Where Lesson 10 pays off.** The step `python -m bridge scan ...` returns exit code 1
+when the policy blocks. GitHub sees a failed step, the job turns red, and the pull
+request shows a red cross. Nobody has to read anything for the system to say "stop".
+That one number is the whole mechanism.
+
+**Choices worth understanding**
+
+1. **Least privilege.** The workflow starts with `permissions: contents: read`, meaning it
+   can only read your repo. Only the scan job gets the extra `security-events: write`,
+   and only because uploading to the Security tab needs it. If any step were ever
+   hijacked, it could do much less damage. Security tools should hold the minimum power.
+2. **`if: always()`.** A normal step is skipped once an earlier step fails. But the failure
+   is exactly when you most want the report, so the publishing steps use `always()`.
+   The scan step itself has no `always()` and no `continue-on-error`, because that would
+   swallow the failure and nothing would ever be blocked. A test enforces this.
+3. **Pinned versions.** `GITLEAKS_VERSION` and `TRIVY_VERSION` are fixed numbers. If a
+   scanner updated overnight and changed its output, your pipeline could start failing
+   (or worse, passing) for no visible reason. Pinning makes changes deliberate. The
+   trade-off is that you must bump them yourself now and then.
+4. **Run summary.** The report is appended to `$GITHUB_STEP_SUMMARY`, so the layer table
+   appears on the run's page without opening any file.
+5. **SARIF upload.** Lesson 9 pays off here: `upload-sarif` sends `report.sarif` to the
+   repository's **Security** tab (Code scanning), where findings show up per file and line.
+   Paths there must be relative to the repo root, so the CLI adds the scanned folder as a
+   prefix (`sample-app/config.py`, not `config.py`).
+6. **Report download.** `upload-artifact` keeps `out/` as a downloadable zip on the run.
+
+**What a pipeline cannot do alone: branch protection.** A red cross is only a warning
+until you tell GitHub to enforce it. In the repo's Settings, add a branch protection
+rule (or ruleset) for `main` that **requires the `scan` check to pass before merging**.
+Without that, someone can merge a blocked pull request anyway.
+
+**Things I could not test from here (be honest with yourself about these)**
+
+- The workflow has never run on GitHub. It is validated as YAML, its safety properties are
+  pinned by tests, and the scan step was simulated locally, but the first real run may
+  hit a snag. Read the failing step's log; it usually says exactly what is wrong.
+- The scanner versions and download URLs follow each project's usual naming but were not
+  verified. If "Install the scanners" fails with a 404, check the project's Releases page
+  for the right version and file name.
+- Semgrep's `--config auto` downloads rules from the internet while it runs. That works
+  on GitHub's machines, and would not work on a locked-down network.
+- Uploading to the Security tab is free on public repositories. On private repositories
+  it needs GitHub's paid code scanning; the step is marked `continue-on-error` so it never
+  hides the real verdict, and the report is still in the run summary and the download.
+
+**Try it** (see README, "Run it on GitHub"): push the project, open the Actions tab and
+watch the run. It should turn red, because the sample app is broken on purpose. Then
+change the policy so everything passes (or fix the flaws) and watch it turn green.
+
 ---
 
 ## Running the real scanners

@@ -31,6 +31,32 @@ python3 -m bridge scan sample-app
 Missing tools are reported as `skipped`, never as a clean result. Exit code: `0` passed,
 `1` blocked, `2` could not run.
 
+## Run it on GitHub (phase 2a)
+
+1. Create a new, empty repository on GitHub. A public one is simplest, because uploading
+   to the Security tab is free there.
+2. Make **this folder** the repository root, so that `.github/workflows/` sits at the top:
+
+   ```
+   git init -b main
+   git add .
+   git commit -m "SecureBridge phase 2a"
+   git remote add origin https://github.com/<you>/<repo>.git
+   git push -u origin main
+   ```
+
+3. Open the **Actions** tab and watch "SecureBridge" run. The `scan` job is expected to turn
+   **red**: the sample app is vulnerable on purpose, so the verdict is BLOCKED.
+4. Open the run and read the layer table in the summary. If you used a public repo, also
+   open **Security > Code scanning**.
+5. Optional but important: Settings > Branches (or Rules) > protect `main` and require the
+   `scan` check, so a blocked pull request cannot be merged.
+
+If GitHub refuses the push because it spotted a "secret", that is the planted fake token
+in `sample-app/config.py` being caught. It is not real and works nowhere.
+Read Lesson 14 in `LESSONS.md` for what each part of the workflow does and what could
+not be tested.
+
 ## Layout
 
 ```
@@ -38,6 +64,7 @@ sample-app/   intentionally vulnerable app (never deploy it)
 fixtures/     hand-written sample scanner outputs for --demo (see its README)
 bridge/       models, adapters, runner, layers, policy, report, cli
 policy.json   the blocking rules and waivers
-tests/        23 tests
+tests/        30 tests
+.github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```
