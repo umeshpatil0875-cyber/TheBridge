@@ -65,7 +65,10 @@ def run_real(tool: str, root: str) -> ToolRun:
 
         # Gitleaks writes to a file; the others print to the screen (stdout).
         if tool == "gitleaks":
-            raw = open(report_path).read() if os.path.exists(report_path) else ""
+            raw = ""
+            if os.path.exists(report_path):
+                with open(report_path) as handle:
+                    raw = handle.read()
         else:
             raw = proc.stdout
 
@@ -80,7 +83,55 @@ def run_real(tool: str, root: str) -> ToolRun:
                            f"exit code {proc.returncode}. stderr: {proc.stderr.strip()[:200]}")
 
     findings = ADAPTERS[tool](data, root)
-    return ToolRun(tool, "ok", f"{len(findings)} finding(s)", findings)
+    detail = f"{len(findings)} finding(s)"
+
+    # LESSON 16: never trust a scanner that says "0 findings" until you have seen it
+    # find something. See gitleaks_self_test below.
+    if tool == "gitleaks":
+        passed, why = gitleaks_self_test()
+        if passed:
+            detail += "; self-test passed"
+        else:
+            return ToolRun(tool, "failed",
+                           f"self-test FAILED, so its result cannot be trusted ({why}). "
+                           f"It reported {len(findings)} finding(s).", findings)
+    return ToolRun(tool, "ok", detail, findings)
+
+
+# A made-up token that is NOT in the sample app. It is written in two pieces so that
+# scanning this very file does not report it. It looks random on purpose, because
+# scanners ignore strings that look obviously fake or patterned.
+_CANARY_TOKEN = "ghp_" + "Zq8WmP3xK7vN2rT5yB9cH4jL6sD1fG0aXeUo"
+
+
+def gitleaks_self_test() -> tuple[bool, str]:
+    """LESSON 16 (the canary): plant a known fake secret in a temporary folder and make
+    sure Gitleaks finds it, using the exact same command as the real scan.
+
+    A scanner that silently finds nothing looks identical to a clean project, which is
+    the most dangerous kind of failure. Real teams keep a "canary" like this and sound
+    an alarm when it goes quiet. Returns (passed, reason if not).
+    """
+    with tempfile.TemporaryDirectory() as source, tempfile.TemporaryDirectory() as out:
+        with open(os.path.join(source, "canary.py"), "w") as handle:
+            handle.write(f'API_TOKEN = "{_CANARY_TOKEN}"\n')
+        report_path = os.path.join(out, "canary-report.json")
+        try:
+            proc = subprocess.run(_command("gitleaks", report_path), cwd=source,
+                                  capture_output=True, text=True, timeout=TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            return False, "the self-test timed out"
+        if proc.returncode not in (0, 1):
+            return False, f"the self-test command failed with exit code {proc.returncode}: " \
+                          f"{proc.stderr.strip()[:200]}"
+        try:
+            with open(report_path) as handle:
+                items = json.load(handle) or []
+        except (OSError, json.JSONDecodeError):
+            return False, "the self-test produced no readable report"
+        if any(os.path.basename(str(item.get("File", ""))) == "canary.py" for item in items):
+            return True, ""
+        return False, "a planted fake token was not found"
 
 
 def run_demo(tool: str, fixtures_dir: str, root: str) -> ToolRun:

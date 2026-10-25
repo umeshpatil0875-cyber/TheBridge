@@ -320,6 +320,70 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("gh release view", install)  # prints real file names on failure
 
 
+@unittest.skipIf(os.name == "nt", "uses small shell-script stand-ins for gitleaks")
+class SelfTestTests(unittest.TestCase):
+    """The canary: a scanner that says '0 findings' must prove it can find something."""
+
+    HEALTHY = """#!/bin/sh
+src=.
+while [ $# -gt 0 ]; do
+  case "$1" in --report-path) out="$2";; --source) src="$2";; esac
+  shift
+done
+hit=$(grep -rl 'ghp_' "$src" 2>/dev/null | head -1)
+if [ -n "$hit" ]; then
+  printf '[{"RuleID":"github-pat","File":"%s","StartLine":1,"Description":"token"}]' "$hit" > "$out"
+else
+  printf '[]' > "$out"
+fi
+"""
+    BLIND = """#!/bin/sh
+while [ $# -gt 0 ]; do [ "$1" = "--report-path" ] && out="$2"; shift; done
+printf '[]' > "$out"
+"""
+
+    def run_with(self, script, folder):
+        from bridge.runner import run_real
+        with tempfile.TemporaryDirectory() as bin_dir:
+            path = os.path.join(bin_dir, "gitleaks")
+            with open(path, "w") as handle:
+                handle.write(script)
+            os.chmod(path, 0o755)
+            env = {"PATH": bin_dir + os.pathsep + os.environ.get("PATH", "")}
+            with mock.patch.dict(os.environ, env):
+                return run_real("gitleaks", folder)
+
+    def test_a_scanner_that_finds_the_canary_is_trusted(self):
+        with tempfile.TemporaryDirectory() as clean:
+            result = self.run_with(self.HEALTHY, clean)
+        self.assertEqual(result.status, "ok")
+        self.assertIn("self-test passed", result.detail)
+        self.assertEqual(result.findings, [])
+
+    def test_a_blind_scanner_reporting_zero_is_marked_failed_not_clean(self):
+        result = self.run_with(self.BLIND, APP)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("self-test FAILED", result.detail)
+
+    def test_real_findings_are_kept_even_when_the_self_test_fails(self):
+        script = self.BLIND.replace(
+            "printf '[]'",
+            """printf '[{"RuleID":"github-pat","File":"config.py","StartLine":5}]'""")
+        # This stand-in always reports config.py, even for the canary folder (which has
+        # canary.py only), so the self-test must still fail while the finding survives.
+        result = self.run_with(script, APP)
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(len(result.findings), 1)
+
+    def test_the_canary_token_has_the_right_shape_and_is_not_in_the_sample_app(self):
+        from bridge.runner import _CANARY_TOKEN
+        self.assertRegex(_CANARY_TOKEN, r"^ghp_[0-9a-zA-Z]{36}$")
+        with open(os.path.join(APP, "config.py")) as handle:
+            self.assertNotIn(_CANARY_TOKEN, handle.read())
+        with open(os.path.join(ROOT, "bridge", "runner.py")) as handle:
+            self.assertNotIn(_CANARY_TOKEN, handle.read())  # split so we do not scan ourselves
+
+
 class EndToEndTests(unittest.TestCase):
     def run_cli(self, argv):
         buffer = StringIO()

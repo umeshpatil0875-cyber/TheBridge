@@ -326,15 +326,33 @@ token (`ghp_...` in `config.py`). Possible reasons, to check one by one:
   reporting. A made-up token can look "too fake" to a smart rule.
 - A real command-line problem in `bridge/runner.py`.
 
-To tell these apart, open the run's "Run SecureBridge" step. If `config.py` still has the
-token, the most useful experiment is to run Gitleaks yourself on that folder (see its
-`--help`) and compare. A scanner that reports "0 findings" when you know there is one is a
-**silent failure**, the most dangerous kind. It is why real teams keep a "canary", a
-planted secret that must always be found, and alarm if it is not. Adding one to this
-bridge is a good next improvement.
+Lesson 16 adds a self-test that tells the first two causes from the third automatically.
 
 **Why demo mode could not show any of this:** the saved sample outputs only contained
 what I expected to see. Test against the real thing as early as you can.
+
+## Lesson 16: the canary (`gitleaks_self_test` in `bridge/runner.py`)
+
+A scanner that says "0 findings" looks exactly like a scanner that is broken, and that is
+the most dangerous failure there is: everyone sees a green result and relaxes. A **canary**
+(named after the bird miners carried to detect gas) is a known problem planted on
+purpose. Every time Gitleaks runs, the bridge also writes a temporary folder with a made-up
+token, runs the *same command* on it, and checks that Gitleaks finds it.
+
+| Self-test | Real scan | What it means |
+| --- | --- | --- |
+| passes | 0 findings | trustworthy: Gitleaks works and your folder has no secret it recognises |
+| passes | finds something | normal |
+| fails | anything | the Gitleaks run cannot be trusted: marked `failed` in the report, with its findings still shown |
+
+For our mystery: if the report says "self-test passed" and still 0 findings, Gitleaks
+works and the sample token was either changed in your copy or considered too fake to flag
+(the canary token is deliberately random-looking, the sample one is a visible pattern). If
+the self-test fails, the command or Gitleaks version is the problem.
+
+Two honest limits: the canary proves Gitleaks can find *one kind* of secret, not that it
+catches every kind; and it only covers Gitleaks. Semgrep and Trivy could silently go quiet
+too, and a canary for each is a sensible later addition.
 
 ---
 

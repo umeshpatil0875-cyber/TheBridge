@@ -64,7 +64,7 @@ sample-app/   intentionally vulnerable app (never deploy it)
 fixtures/     hand-written sample scanner outputs for --demo (see its README)
 bridge/       models, adapters, runner, layers, policy, report, cli
 policy.json   the blocking rules and waivers
-tests/        37 tests
+tests/        41 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```
