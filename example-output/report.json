@@ -1,0 +1,156 @@
+{
+  "verdict": "blocked",
+  "blocking_count": 9,
+  "duplicates_merged": 0,
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "status": "demo",
+      "detail": "1 finding(s) from sample output"
+    },
+    {
+      "name": "semgrep",
+      "status": "demo",
+      "detail": "3 finding(s) from sample output"
+    },
+    {
+      "name": "trivy",
+      "status": "demo",
+      "detail": "7 finding(s) from sample output"
+    }
+  ],
+  "findings": [
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2018-18074",
+      "severity": "critical",
+      "title": "requests: Authorization header sent to a different host on redirect",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "requests",
+      "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2018-18074",
+      "fix": "Upgrade requests to 2.20.0 or newer."
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2020-14343",
+      "severity": "critical",
+      "title": "PyYAML: arbitrary code execution when loading untrusted YAML",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "pyyaml",
+      "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-14343",
+      "fix": "Upgrade pyyaml to 5.4 or newer."
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2020-1747",
+      "severity": "critical",
+      "title": "PyYAML: arbitrary code execution via FullLoader",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "pyyaml",
+      "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-1747",
+      "fix": "Upgrade pyyaml to 5.3.1 or newer."
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2019-8341",
+      "severity": "critical",
+      "title": "Jinja2: code injection in the from_string function",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "jinja2",
+      "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-8341",
+      "fix": "Upgrade jinja2 to 2.10.1 or newer."
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "DS002",
+      "severity": "high",
+      "title": "Image user should not be 'root'",
+      "file": "Dockerfile",
+      "line": 1,
+      "package": "",
+      "description": "Running containers as root gives an attacker full control if they break into the app. Add a USER line with a non-root user.",
+      "fix": "Add 'USER <non root user name>' line to the Dockerfile"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+      "severity": "high",
+      "title": "tainted sql string",
+      "file": "app.py",
+      "line": 20,
+      "package": "",
+      "description": "Weakness type: CWE-89: SQL Injection.",
+      "fix": "User input is used to build an SQL string. Use parameterized queries instead."
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+      "severity": "high",
+      "title": "subprocess shell true",
+      "file": "app.py",
+      "line": 28,
+      "package": "",
+      "description": "Weakness type: CWE-78: OS Command Injection.",
+      "fix": "Found 'subprocess' call with shell=True. This allows command injection. Pass a list of arguments and drop shell=True."
+    },
+    {
+      "tool": "gitleaks",
+      "category": "secret",
+      "rule_id": "github-pat",
+      "severity": "high",
+      "title": "GitHub Personal Access Token",
+      "file": "config.py",
+      "line": 5,
+      "package": "",
+      "description": "A credential-like value is stored in source code. (The value itself is intentionally left out of this report.)",
+      "fix": "Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead."
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2018-1000656",
+      "severity": "high",
+      "title": "Flask: denial of service via crafted JSON data",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "flask",
+      "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2018-1000656",
+      "fix": "Upgrade flask to 0.12.3 or newer."
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2019-10906",
+      "severity": "high",
+      "title": "Jinja2: sandbox escape through str.format_map",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "jinja2",
+      "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906",
+      "fix": "Upgrade jinja2 to 2.10.1 or newer."
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "python.flask.security.audit.debug-enabled.debug-enabled",
+      "severity": "medium",
+      "title": "debug enabled",
+      "file": "app.py",
+      "line": 33,
+      "package": "",
+      "description": "Weakness type: CWE-489: Active Debug Code.",
+      "fix": "Running Flask with debug=True can expose an interactive console. Turn it off in production."
+    }
+  ]
+}

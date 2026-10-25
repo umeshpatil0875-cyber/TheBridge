@@ -1,0 +1,788 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SecureBridge",
+          "rules": [
+            {
+              "id": "trivy/CVE-2020-14343",
+              "shortDescription": {
+                "text": "PyYAML: incomplete fix for CVE-2020-1747"
+              }
+            },
+            {
+              "id": "trivy/CVE-2020-1747",
+              "shortDescription": {
+                "text": "PyYAML: arbitrary command execution through python/object/new when FullLoader is used"
+              }
+            },
+            {
+              "id": "trivy/DS-0002",
+              "shortDescription": {
+                "text": "Image user should not be 'root'"
+              }
+            },
+            {
+              "id": "semgrep/dockerfile.security.missing-user.missing-user",
+              "shortDescription": {
+                "text": "missing user"
+              }
+            },
+            {
+              "id": "semgrep/python.django.security.injection.tainted-sql-string.tainted-sql-string",
+              "shortDescription": {
+                "text": "tainted sql string"
+              }
+            },
+            {
+              "id": "semgrep/python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+              "shortDescription": {
+                "text": "sqlalchemy execute raw query"
+              }
+            },
+            {
+              "id": "semgrep/python.flask.security.injection.subprocess-injection.subprocess-injection",
+              "shortDescription": {
+                "text": "subprocess injection"
+              }
+            },
+            {
+              "id": "gitleaks/github-pat",
+              "shortDescription": {
+                "text": "Uncovered a GitHub Personal Access Token, potentially leading to unauthorized repository access and sensitive content exposure."
+              }
+            },
+            {
+              "id": "trivy/CVE-2018-1000656",
+              "shortDescription": {
+                "text": "python-flask: Denial of Service via crafted JSON file"
+              }
+            },
+            {
+              "id": "trivy/CVE-2019-1010083",
+              "shortDescription": {
+                "text": "python-flask: unexpected memory usage can lead to denial of service via crafted encoded JSON data"
+              }
+            },
+            {
+              "id": "trivy/CVE-2023-30861",
+              "shortDescription": {
+                "text": "flask: Possible disclosure of permanent session cookie due to missing Vary: Cookie header"
+              }
+            },
+            {
+              "id": "trivy/CVE-2019-10906",
+              "shortDescription": {
+                "text": "python-jinja2: str.format_map allows sandbox escape"
+              }
+            },
+            {
+              "id": "trivy/CVE-2018-18074",
+              "shortDescription": {
+                "text": "python-requests: Redirect from HTTPS to HTTP does not remove Authorization header"
+              }
+            },
+            {
+              "id": "semgrep/python.django.security.injection.sql.sql-injection-using-db-cursor-execute.sql-injection-db-cursor-execute",
+              "shortDescription": {
+                "text": "sql injection db cursor execute"
+              }
+            },
+            {
+              "id": "semgrep/python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host",
+              "shortDescription": {
+                "text": "avoid_app_run_with_bad_host"
+              }
+            },
+            {
+              "id": "trivy/CVE-2020-28493",
+              "shortDescription": {
+                "text": "python-jinja2: ReDoS vulnerability in the urlize filter"
+              }
+            },
+            {
+              "id": "trivy/CVE-2024-22195",
+              "shortDescription": {
+                "text": "jinja2: HTML attribute injection when passing user input as keys to xmlattr filter"
+              }
+            },
+            {
+              "id": "trivy/CVE-2024-34064",
+              "shortDescription": {
+                "text": "jinja2: accepts keys containing non-attribute characters"
+              }
+            },
+            {
+              "id": "trivy/CVE-2024-56326",
+              "shortDescription": {
+                "text": "jinja2: Jinja has a sandbox breakout through indirect reference to format method"
+              }
+            },
+            {
+              "id": "trivy/CVE-2025-27516",
+              "shortDescription": {
+                "text": "jinja2: Jinja sandbox breakout through attr filter selecting format method"
+              }
+            },
+            {
+              "id": "trivy/CVE-2023-32681",
+              "shortDescription": {
+                "text": "python-requests: Unintended leak of Proxy-Authorization header"
+              }
+            },
+            {
+              "id": "trivy/CVE-2024-35195",
+              "shortDescription": {
+                "text": "requests: subsequent requests to the same host ignore cert verification"
+              }
+            },
+            {
+              "id": "trivy/CVE-2024-47081",
+              "shortDescription": {
+                "text": "requests: Requests vulnerable to .netrc credentials leak via malicious URLs"
+              }
+            },
+            {
+              "id": "trivy/CVE-2026-25645",
+              "shortDescription": {
+                "text": "requests: Requests: Security bypass due to predictable temporary file creation"
+              }
+            },
+            {
+              "id": "trivy/CVE-2026-27205",
+              "shortDescription": {
+                "text": "flask: Flask: Information disclosure via improper caching of session data"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "trivy/CVE-2020-14343",
+          "level": "error",
+          "message": {
+            "text": "PyYAML: incomplete fix for CVE-2020-1747. pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-14343 Fix: Upgrade pyyaml to 5.4 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "4620f9e9965b6c1bf7270ce8ab4af7487acec6f111b3e39cb3487a52b6e981ef"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2020-1747",
+          "level": "error",
+          "message": {
+            "text": "PyYAML: arbitrary command execution through python/object/new when FullLoader is used. pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-1747 Fix: Upgrade pyyaml to 5.3.1 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "8e40c26ec8243145054bfdec5c10bd33d8605928f929078130243794aade3b6c"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/DS-0002",
+          "level": "error",
+          "message": {
+            "text": "Image user should not be 'root'. Running containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile. Fix: Add 'USER <non root user name>' line to the Dockerfile"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "df9d7468428e9949923183fd5c4b88592f2384df7e8ec70a1b74cd5ab8f1e564"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "semgrep/dockerfile.security.missing-user.missing-user",
+          "level": "error",
+          "message": {
+            "text": "missing user. Weakness type: CWE-250: Execution with Unnecessary Privileges. Fix: By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "c8f60f2fde7a9c12960d08dac5526ff7803c4eac755ad5958af5f475f0fb174d"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.django.security.injection.tainted-sql-string.tainted-sql-string",
+          "level": "error",
+          "message": {
+            "text": "tainted sql string. Weakness type: CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes. Fix: Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "aa891a02c4a73575797186cf95432f35081328a79a1a1ffdec243fe721fd48c3"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+          "level": "error",
+          "message": {
+            "text": "sqlalchemy execute raw query. Weakness type: CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection'). Fix: Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "7c6f48a176d00f6a93f27125d3a398883bb5b763d172555f499ff89ddafd9446"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.flask.security.injection.subprocess-injection.subprocess-injection",
+          "level": "error",
+          "message": {
+            "text": "subprocess injection. Weakness type: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection'). Fix: Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 28
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "850bba0469eec03b1a82fc77bce3138ef4f6d0a56df4de983956a8fccf6539e2"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "gitleaks/github-pat",
+          "level": "error",
+          "message": {
+            "text": "Uncovered a GitHub Personal Access Token, potentially leading to unauthorized repository access and sensitive content exposure.. A credential-like value is stored in source code. (The value itself is intentionally left out of this report.) Fix: Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "config.py"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "760a82c001da26be89cdf5189d69e9e3601b02abb5d3f4d1de5206cf52d2d6f9"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secret",
+            "tool": "gitleaks"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2018-1000656",
+          "level": "error",
+          "message": {
+            "text": "python-flask: Denial of Service via crafted JSON file. flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2018-1000656 Fix: Upgrade flask to 0.12.3 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "355396c3480627437112c766292631b7bd731179a877f77ea0884ea521d60711"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2019-1010083",
+          "level": "error",
+          "message": {
+            "text": "python-flask: unexpected memory usage can lead to denial of service via crafted encoded JSON data. flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2019-1010083 Fix: Upgrade flask to 1.0 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "f82d04f05eb6ac219b80c07ac8a3ee08f0fca0350eeed3b713f2475e103ef381"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2023-30861",
+          "level": "error",
+          "message": {
+            "text": "flask: Possible disclosure of permanent session cookie due to missing Vary: Cookie header. flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2023-30861 Fix: Upgrade flask to 2.3.2, 2.2.5 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "a712fa29e0f8c5bacb47dba21adace917cae2f5bef830ce3ec83ead8e13be7d0"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2019-10906",
+          "level": "error",
+          "message": {
+            "text": "python-jinja2: str.format_map allows sandbox escape. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906 Fix: Upgrade jinja2 to 2.10.1 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "478f2513aed604cd4ad4f0faaf58f703d0842a52c548e4cbbad007ec23430c61"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2018-18074",
+          "level": "error",
+          "message": {
+            "text": "python-requests: Redirect from HTTPS to HTTP does not remove Authorization header. requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2018-18074 Fix: Upgrade requests to 2.20.0 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "def668c1eaa6b2059e0c58fa3a7b653225095e9fb30cc610c6a0b328b4443c35"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.django.security.injection.sql.sql-injection-using-db-cursor-execute.sql-injection-db-cursor-execute",
+          "level": "warning",
+          "message": {
+            "text": "sql injection db cursor execute. Weakness type: CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection'). Fix: User-controlled data from a request is passed to 'execute()'. This could lead to a SQL injection and therefore protected information could be leaked. Instead, use django's QuerySets, which are built with query parameterization and therefore not vulnerable to sql injection. For example, you could use `Entry.objects.filter(date=2006)`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "bea8f67c24a5f03fe6d47ccff35342b6bce0807136962da52f9e262b3b66fe45"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host",
+          "level": "warning",
+          "message": {
+            "text": "avoid_app_run_with_bad_host. Weakness type: CWE-668: Exposure of Resource to Wrong Sphere. Fix: Running flask app with host 0.0.0.0 could expose the server publicly."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 33
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "0ba485db8aecdf1b613f91558c8fea6156320539f7b738f4fe9bad59065f48a4"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2020-28493",
+          "level": "warning",
+          "message": {
+            "text": "python-jinja2: ReDoS vulnerability in the urlize filter. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2020-28493 Fix: Upgrade jinja2 to 2.11.3 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "27986d5b0228bdf2674248a0dd3d9eb1570cb23460a2465cf3220bf09360944b"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2024-22195",
+          "level": "warning",
+          "message": {
+            "text": "jinja2: HTML attribute injection when passing user input as keys to xmlattr filter. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2024-22195 Fix: Upgrade jinja2 to 3.1.3 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "611d9e4ddd9a0c726f3233fec9425bbdf4a260b275f06bdc29ce24d3fcc0f8d8"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2024-34064",
+          "level": "warning",
+          "message": {
+            "text": "jinja2: accepts keys containing non-attribute characters. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2024-34064 Fix: Upgrade jinja2 to 3.1.4 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "9fa085051b588ddf16366e5fce3d40d9dcd66d078268d516e3f7a28bc7f906c4"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2024-56326",
+          "level": "warning",
+          "message": {
+            "text": "jinja2: Jinja has a sandbox breakout through indirect reference to format method. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2024-56326 Fix: Upgrade jinja2 to 3.1.5 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "3a388d3a6a11d82f2696ee88415ca2b4307be48b92566fab8202c5a81df46b20"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2025-27516",
+          "level": "warning",
+          "message": {
+            "text": "jinja2: Jinja sandbox breakout through attr filter selecting format method. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2025-27516 Fix: Upgrade jinja2 to 3.1.6 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "5f199ceb73fbdcdfc4292d8c2bc1a150c7dd6032e8068f8cda6751127acc5c7c"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2023-32681",
+          "level": "warning",
+          "message": {
+            "text": "python-requests: Unintended leak of Proxy-Authorization header. requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2023-32681 Fix: Upgrade requests to 2.31.0 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "3b96a33b246b43155973867ac835876cc7412279ace4ccf55be3e933814da98b"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2024-35195",
+          "level": "warning",
+          "message": {
+            "text": "requests: subsequent requests to the same host ignore cert verification. requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2024-35195 Fix: Upgrade requests to 2.32.0 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "f5f45d8736b7e29fc1f83cf2de4404511201499fea6d18e2957c27e22c55b82c"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2024-47081",
+          "level": "warning",
+          "message": {
+            "text": "requests: Requests vulnerable to .netrc credentials leak via malicious URLs. requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2024-47081 Fix: Upgrade requests to 2.32.4 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "8525550828a5dbc9bf83b4e9a766bd3f327d5db800baf157f3d556024e72d874"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2026-25645",
+          "level": "warning",
+          "message": {
+            "text": "requests: Requests: Security bypass due to predictable temporary file creation. requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2026-25645 Fix: Upgrade requests to 2.33.0 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "61166a31ef4956b086180a2b44d1bf55d6926309bbd7980d5f86d331f2832e2d"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2026-27205",
+          "level": "note",
+          "message": {
+            "text": "flask: Flask: Information disclosure via improper caching of session data. flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2026-27205 Fix: Upgrade flask to 3.1.3 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "569d09dea0a255db326a27346f12caca57e1d17cf00bb1865a14b3d6b7225b6f"
+          },
+          "properties": {
+            "severity": "low",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        }
+      ]
+    }
+  ]
+}

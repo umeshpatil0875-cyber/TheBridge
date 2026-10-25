@@ -1,0 +1,42 @@
+{
+  "version": "demo",
+  "results": [
+    {
+      "check_id": "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+      "path": "app.py",
+      "start": {"line": 20, "col": 13, "offset": 0},
+      "end": {"line": 20, "col": 55, "offset": 0},
+      "extra": {
+        "message": "User input is used to build an SQL string. Use parameterized queries instead.",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-89: SQL Injection"], "category": "security"},
+        "lines": "    query = \"SELECT * FROM users WHERE name = '%s'\" % name"
+      }
+    },
+    {
+      "check_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+      "path": "app.py",
+      "start": {"line": 28, "col": 12, "offset": 0},
+      "end": {"line": 28, "col": 67, "offset": 0},
+      "extra": {
+        "message": "Found 'subprocess' call with shell=True. This allows command injection. Pass a list of arguments and drop shell=True.",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-78: OS Command Injection"], "category": "security"},
+        "lines": "    return subprocess.check_output(\"ping -c 1 \" + host, shell=True)"
+      }
+    },
+    {
+      "check_id": "python.flask.security.audit.debug-enabled.debug-enabled",
+      "path": "app.py",
+      "start": {"line": 33, "col": 5, "offset": 0},
+      "end": {"line": 33, "col": 51, "offset": 0},
+      "extra": {
+        "message": "Running Flask with debug=True can expose an interactive console. Turn it off in production.",
+        "severity": "WARNING",
+        "metadata": {"cwe": ["CWE-489: Active Debug Code"], "category": "security"},
+        "lines": "    app.run(host=\"0.0.0.0\", debug=True)"
+      }
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SecureBridge",
+          "rules": [
+            {
+              "id": "trivy/CVE-2018-18074",
+              "shortDescription": {
+                "text": "requests: Authorization header sent to a different host on redirect"
+              }
+            },
+            {
+              "id": "trivy/CVE-2020-14343",
+              "shortDescription": {
+                "text": "PyYAML: arbitrary code execution when loading untrusted YAML"
+              }
+            },
+            {
+              "id": "trivy/CVE-2020-1747",
+              "shortDescription": {
+                "text": "PyYAML: arbitrary code execution via FullLoader"
+              }
+            },
+            {
+              "id": "trivy/CVE-2019-8341",
+              "shortDescription": {
+                "text": "Jinja2: code injection in the from_string function"
+              }
+            },
+            {
+              "id": "trivy/DS002",
+              "shortDescription": {
+                "text": "Image user should not be 'root'"
+              }
+            },
+            {
+              "id": "semgrep/python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+              "shortDescription": {
+                "text": "tainted sql string"
+              }
+            },
+            {
+              "id": "semgrep/python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+              "shortDescription": {
+                "text": "subprocess shell true"
+              }
+            },
+            {
+              "id": "gitleaks/github-pat",
+              "shortDescription": {
+                "text": "GitHub Personal Access Token"
+              }
+            },
+            {
+              "id": "trivy/CVE-2018-1000656",
+              "shortDescription": {
+                "text": "Flask: denial of service via crafted JSON data"
+              }
+            },
+            {
+              "id": "trivy/CVE-2019-10906",
+              "shortDescription": {
+                "text": "Jinja2: sandbox escape through str.format_map"
+              }
+            },
+            {
+              "id": "semgrep/python.flask.security.audit.debug-enabled.debug-enabled",
+              "shortDescription": {
+                "text": "debug enabled"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "trivy/CVE-2018-18074",
+          "level": "error",
+          "message": {
+            "text": "requests: Authorization header sent to a different host on redirect. requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2018-18074 Fix: Upgrade requests to 2.20.0 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "def668c1eaa6b2059e0c58fa3a7b653225095e9fb30cc610c6a0b328b4443c35"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2020-14343",
+          "level": "error",
+          "message": {
+            "text": "PyYAML: arbitrary code execution when loading untrusted YAML. pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-14343 Fix: Upgrade pyyaml to 5.4 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "4620f9e9965b6c1bf7270ce8ab4af7487acec6f111b3e39cb3487a52b6e981ef"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2020-1747",
+          "level": "error",
+          "message": {
+            "text": "PyYAML: arbitrary code execution via FullLoader. pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-1747 Fix: Upgrade pyyaml to 5.3.1 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "8e40c26ec8243145054bfdec5c10bd33d8605928f929078130243794aade3b6c"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2019-8341",
+          "level": "error",
+          "message": {
+            "text": "Jinja2: code injection in the from_string function. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-8341 Fix: Upgrade jinja2 to 2.10.1 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "4310a20f7dd4b40b9ee131632993f8757812ad5511f38eb967a4082def7ecf77"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/DS002",
+          "level": "error",
+          "message": {
+            "text": "Image user should not be 'root'. Running containers as root gives an attacker full control if they break into the app. Add a USER line with a non-root user. Fix: Add 'USER <non root user name>' line to the Dockerfile"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "9f2f22361788c25778e23e7906f80a53ec7b2f5e0c56c3365442542b1456005a"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+          "level": "error",
+          "message": {
+            "text": "tainted sql string. Weakness type: CWE-89: SQL Injection. Fix: User input is used to build an SQL string. Use parameterized queries instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "81f9e4e2fb11340405a426bee4acebf9563c1eada48d1ef6250348a60d360979"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+          "level": "error",
+          "message": {
+            "text": "subprocess shell true. Weakness type: CWE-78: OS Command Injection. Fix: Found 'subprocess' call with shell=True. This allows command injection. Pass a list of arguments and drop shell=True."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 28
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "3e37915e4ce3d408133e876f381012ca8154a21c01900c95b87ee393d75d2f3e"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        },
+        {
+          "ruleId": "gitleaks/github-pat",
+          "level": "error",
+          "message": {
+            "text": "GitHub Personal Access Token. A credential-like value is stored in source code. (The value itself is intentionally left out of this report.) Fix: Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "config.py"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "760a82c001da26be89cdf5189d69e9e3601b02abb5d3f4d1de5206cf52d2d6f9"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secret",
+            "tool": "gitleaks"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2018-1000656",
+          "level": "error",
+          "message": {
+            "text": "Flask: denial of service via crafted JSON data. flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2018-1000656 Fix: Upgrade flask to 0.12.3 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "355396c3480627437112c766292631b7bd731179a877f77ea0884ea521d60711"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "trivy/CVE-2019-10906",
+          "level": "error",
+          "message": {
+            "text": "Jinja2: sandbox escape through str.format_map. jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906 Fix: Upgrade jinja2 to 2.10.1 or newer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "478f2513aed604cd4ad4f0faaf58f703d0842a52c548e4cbbad007ec23430c61"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "dependency",
+            "tool": "trivy"
+          }
+        },
+        {
+          "ruleId": "semgrep/python.flask.security.audit.debug-enabled.debug-enabled",
+          "level": "warning",
+          "message": {
+            "text": "debug enabled. Weakness type: CWE-489: Active Debug Code. Fix: Running Flask with debug=True can expose an interactive console. Turn it off in production."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "startLine": 33
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "d99fb4ed802343c1e5826b30d0b5d310b5702ac6c4a73138a1ebe2732bf165b5"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "code",
+            "tool": "semgrep"
+          }
+        }
+      ]
+    }
+  ]
+}

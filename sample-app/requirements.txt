@@ -1,0 +1,5 @@
+# FLAW 5: old library versions with publicly known vulnerabilities.
+flask==0.12.2
+requests==2.19.1
+pyyaml==5.3
+jinja2==2.10
