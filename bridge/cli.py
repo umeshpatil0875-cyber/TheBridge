@@ -18,7 +18,7 @@ from .layers import classify, first_defective, summarize
 from .policy import evaluate, load_policy
 from .runner import deduplicate, run_demo, run_real
 
-TOOLS = ["gitleaks", "semgrep", "trivy"]
+TOOLS = ["gitleaks", "semgrep", "trivy", "zizmor"]
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 

@@ -20,7 +20,8 @@ permissions:
 
 env:
   # Folder to scan. This demo repo scans the intentionally vulnerable sample app.
-  # For a real project, change it to "." to scan the whole repository.
+  # For a real project, change it to "." to scan the whole repository, which also
+  # lets the bridge check its own pipeline files (this workflow) with zizmor.
   SCAN_PATH: sample-app
   # Scanner versions. Empty means "use the latest release". The versions that were
   # actually used are printed in the run log (step "Show scanner versions").
@@ -59,7 +60,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          pip install semgrep
+          pip install semgrep zizmor
           mkdir -p "$HOME/bin" downloads
 
           fetch() {
@@ -86,6 +87,7 @@ jobs:
           gitleaks version
           trivy --version
           semgrep --version
+          zizmor --version
 
       # If the policy blocks, this step exits with code 1 and the job turns red.
       # The steps below use "if: always()" so results are still published.

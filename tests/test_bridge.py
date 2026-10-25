@@ -30,7 +30,7 @@ def load(name):
 
 
 def all_demo_findings():
-    return [f for tool in ("gitleaks", "semgrep", "trivy")
+    return [f for tool in ("gitleaks", "semgrep", "trivy", "zizmor")
             for f in run_demo(tool, FIXTURES, APP).findings]
 
 
@@ -154,7 +154,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(sarif["version"], "2.1.0")
         run = sarif["runs"][0]
         self.assertEqual(run["tool"]["driver"]["name"], "SecureBridge")
-        self.assertEqual(len(run["results"]), 13)
+        self.assertEqual(len(run["results"]), 18)
         rule_ids = {rule["id"] for rule in run["tool"]["driver"]["rules"]}
         for result in run["results"]:
             self.assertIn(result["ruleId"], rule_ids)
@@ -206,7 +206,7 @@ class LayerTests(unittest.TestCase):
         self.assertNotEqual(layers.classify(finding, APP), "kubernetes")
 
     def classified(self):
-        runs = [run_demo(t, FIXTURES, APP) for t in ("gitleaks", "semgrep", "trivy")]
+        runs = [run_demo(t, FIXTURES, APP) for t in ("gitleaks", "semgrep", "trivy", "zizmor")]
         findings, _ = deduplicate([f for r in runs for f in r.findings])
         for f in findings:
             f.layer = layers.classify(f, APP)
@@ -215,11 +215,16 @@ class LayerTests(unittest.TestCase):
     def test_summary_marks_defective_clean_and_unscanned_layers_honestly(self):
         runs, findings, decision = self.classified()
         status = {r["layer"]: r["status"] for r in layers.summarize(runs, findings, decision)}
-        for broken in ("source", "dependencies", "container", "infrastructure", "kubernetes"):
+        for broken in ("source", "dependencies", "pipeline", "container",
+                       "infrastructure", "kubernetes"):
             self.assertEqual(status[broken], "DEFECTIVE", broken)
-        # Nothing in the bridge checks these, so "clean" would be a lie.
-        self.assertEqual(status["pipeline"], "not scanned")
+        # Nothing in the bridge checks the live system, so "clean" would be a lie.
         self.assertEqual(status["runtime"], "not scanned")
+
+    def test_pipeline_layer_is_not_scanned_when_zizmor_did_not_run(self):
+        runs = [ToolRun("zizmor", "skipped", "no .github/workflows folder")]
+        rows = layers.summarize(runs, [], evaluate([], POLICY))
+        self.assertEqual({r["layer"]: r["status"] for r in rows}["pipeline"], "not scanned")
 
     def test_first_defective_layer_is_the_earliest_one(self):
         runs, findings, decision = self.classified()
@@ -244,6 +249,85 @@ class LayerTests(unittest.TestCase):
 def load_policy_file():
     from bridge.policy import load_policy
     return load_policy(os.path.join(ROOT, "policy.json"))
+
+
+class ZizmorAdapterTests(unittest.TestCase):
+    def test_sample_output_becomes_five_pipeline_findings_with_one_based_lines(self):
+        findings = adapters.parse_zizmor(load("zizmor"), APP)
+        by_rule = {f.rule_id: f for f in findings}
+        self.assertEqual(set(by_rule), {"dangerous-triggers", "excessive-permissions",
+                                        "unpinned-uses", "artipacked", "template-injection"})
+        # zizmor counts lines from 0; the bridge shows lines from 1 like every editor.
+        self.assertEqual(by_rule["dangerous-triggers"].line, 9)
+        self.assertEqual(by_rule["excessive-permissions"].line, 12)
+        self.assertEqual(by_rule["template-injection"].line, 23)
+        self.assertEqual(by_rule["artipacked"].severity, "medium")
+        self.assertEqual(by_rule["excessive-permissions"].severity, "high")
+        for finding in findings:
+            self.assertEqual(finding.file, ".github/workflows/build.yml")
+            self.assertEqual(layers.classify(finding, APP), "pipeline")
+
+    def test_ignored_findings_are_skipped(self):
+        data = load("zizmor")
+        data[0]["ignored"] = True
+        self.assertEqual(len(adapters.parse_zizmor(data, APP)), 4)
+
+    def test_empty_or_odd_output_does_not_crash(self):
+        self.assertEqual(adapters.parse_zizmor(None), [])
+        self.assertEqual(adapters.parse_zizmor([]), [])
+        odd = [{"ident": "x", "determinations": {"severity": "Weird"}, "locations": []}]
+        (finding,) = adapters.parse_zizmor(odd)
+        self.assertEqual((finding.severity, finding.file, finding.line), ("info", "?", None))
+
+    def test_two_rules_on_the_same_line_both_survive_dedupe(self):
+        """unpinned-uses and artipacked both point at the checkout line."""
+        findings = adapters.parse_zizmor(load("zizmor"), APP)
+        unique, dropped = deduplicate(findings)
+        self.assertEqual((len(unique), dropped), (5, 0))
+
+
+@unittest.skipIf(os.name == "nt", "uses small shell-script stand-ins for zizmor")
+class ZizmorRunTests(unittest.TestCase):
+    def run_with(self, exit_code, folder, body=None):
+        from bridge.runner import run_real
+        if body is None:
+            with open(os.path.join(FIXTURES, "zizmor.json")) as handle:
+                body = handle.read()
+        script = f"#!/bin/sh\ncat <<'EOF'\n{body}\nEOF\nexit {exit_code}\n"
+        with tempfile.TemporaryDirectory() as bin_dir:
+            path = os.path.join(bin_dir, "zizmor")
+            with open(path, "w") as handle:
+                handle.write(script)
+            os.chmod(path, 0o755)
+            env = {"PATH": bin_dir + os.pathsep + os.environ.get("PATH", "")}
+            with mock.patch.dict(os.environ, env):
+                return run_real("zizmor", folder)
+
+    def test_findings_exit_codes_11_to_14_still_count_as_a_successful_run(self):
+        for code in (0, 11, 13, 14):
+            result = self.run_with(code, APP)
+            self.assertEqual(result.status, "ok", code)
+            self.assertEqual(len(result.findings), 5, code)
+
+    def test_exit_code_1_means_zizmor_itself_failed(self):
+        self.assertEqual(self.run_with(1, APP, body="[]").status, "failed")
+
+    def test_exit_code_3_means_nothing_to_scan_and_is_skipped_not_clean(self):
+        result = self.run_with(3, APP, body="")
+        self.assertEqual(result.status, "skipped")
+
+    def test_a_folder_without_workflows_is_skipped_without_even_running_zizmor(self):
+        with tempfile.TemporaryDirectory() as bare:
+            result = self.run_with(0, bare)
+        self.assertEqual(result.status, "skipped")
+        self.assertIn(".github/workflows", result.detail)
+
+    def test_the_command_is_offline_and_does_not_use_exit_codes(self):
+        from bridge.runner import _command
+        command = _command("zizmor", "unused")
+        self.assertIn("--no-exit-codes", command)
+        self.assertIn("--offline", command)
+        self.assertIn("--format=json", command)
 
 
 class SarifPathTests(unittest.TestCase):

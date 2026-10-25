@@ -137,9 +137,57 @@ def parse_trivy(data: Any, root: str = ".") -> list[Finding]:
     return findings
 
 
+# ----------------------------------------------------------------- zizmor
+_ZIZMOR_SEVERITY = {"high": "high", "medium": "medium", "low": "low",
+                    "informational": "info", "unknown": "info"}
+
+
+def parse_zizmor(data: Any, root: str = ".") -> list[Finding]:
+    """zizmor checks CI/CD pipeline files (GitHub Actions workflows) for unsafe setups.
+
+    Its JSON is a flat list. Each item has an `ident` (the rule name), a `desc`, a
+    `url` to its documentation, a severity under `determinations`, and `locations`
+    saying which file and line. Two details worth knowing, both from zizmor's docs:
+    line numbers in this format start at 0 (we add 1), and a finding can be marked
+    `ignored`, which means a human already decided to accept it, so we skip it.
+    """
+    findings = []
+    for item in data or []:
+        if item.get("ignored"):
+            continue
+        locations = item.get("locations") or []
+        # Prefer the location marked primary; otherwise the first one.
+        primary = next((loc for loc in locations
+                        if (loc.get("symbolic") or {}).get("kind") == "Primary"),
+                       locations[0] if locations else {})
+        symbolic = primary.get("symbolic") or {}
+        local = (symbolic.get("key") or {}).get("Local") or {}
+        path = local.get("verbatim_path") or local.get("given_path") or "?"
+        start = ((primary.get("concrete") or {}).get("location") or {}).get("start_point") or {}
+        row = start.get("row")
+        ident = item.get("ident", "unknown")
+        severity = (item.get("determinations") or {}).get("severity", "")
+        url = item.get("url", "")
+        findings.append(
+            Finding(
+                tool="zizmor",
+                category="config",
+                rule_id=ident,
+                severity=_ZIZMOR_SEVERITY.get(str(severity).lower(), "info"),
+                title=item.get("desc") or ident.replace("-", " "),
+                file=_clean_path(path, root),
+                line=row + 1 if isinstance(row, int) else None,
+                description=symbolic.get("annotation", ""),
+                fix=f"Explanation and remedy: {url}" if url else "",
+            )
+        )
+    return findings
+
+
 # One lookup table, so the runner never needs an if/else chain per tool.
 ADAPTERS = {
     "gitleaks": parse_gitleaks,
     "semgrep": parse_semgrep,
     "trivy": parse_trivy,
+    "zizmor": parse_zizmor,
 }

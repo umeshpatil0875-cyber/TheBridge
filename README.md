@@ -20,7 +20,7 @@ A ready-made copy is in `example-output/`.
 
 Install these on your machine, then drop `--demo`:
 
-- Semgrep: `pip install semgrep`
+- Semgrep and zizmor: `pip install semgrep zizmor`
 - Gitleaks and Trivy: `brew install gitleaks trivy` (macOS/Linux), or follow each
   project's official install page (Windows, Docker and other options are listed there).
 
@@ -64,7 +64,7 @@ sample-app/   intentionally vulnerable app (never deploy it)
 fixtures/     hand-written sample scanner outputs for --demo (see its README)
 bridge/       models, adapters, runner, layers, policy, report, cli
 policy.json   the blocking rules and waivers
-tests/        41 tests
+tests/        51 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```

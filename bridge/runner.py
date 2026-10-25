@@ -19,6 +19,11 @@ from .models import Finding, severity_rank
 
 TIMEOUT_SECONDS = 600
 
+# Exit codes that mean "the tool did its job". Most tools use 0 (and sometimes 1 for
+# "found something"). zizmor uses 11 to 14 for "found something", by severity.
+_OK_CODES = {"zizmor": (0, 11, 12, 13, 14)}
+_DEFAULT_OK_CODES = (0, 1)
+
 
 @dataclass
 class ToolRun:
@@ -43,12 +48,19 @@ def _command(tool: str, report_path: str) -> list[str]:
         # Secrets are left to Gitleaks, so the same leak is not reported twice.
         return ["trivy", "fs", "--format", "json", "--quiet",
                 "--scanners", "vuln,misconfig", "."]
+    if tool == "zizmor":
+        # --no-exit-codes: findings are not an error. --offline: skip the checks that
+        # need internet and a GitHub token, so results are the same everywhere.
+        return ["zizmor", "--format=json", "--no-exit-codes", "--offline", "."]
     raise ValueError(tool)
 
 
 def run_real(tool: str, root: str) -> ToolRun:
     if shutil.which(tool) is None:
         return ToolRun(tool, "skipped", f"'{tool}' is not installed on this machine")
+    if tool == "zizmor" and not os.path.isdir(os.path.join(root, ".github", "workflows")):
+        # Nothing to check is not the same as "checked and clean": say so honestly.
+        return ToolRun(tool, "skipped", "no .github/workflows folder in the scanned folder")
 
     with tempfile.TemporaryDirectory() as tmp:
         report_path = os.path.join(tmp, "gitleaks.json")
@@ -72,13 +84,16 @@ def run_real(tool: str, root: str) -> ToolRun:
         else:
             raw = proc.stdout
 
+        if tool == "zizmor" and proc.returncode == 3:  # zizmor's code for "no inputs"
+            return ToolRun(tool, "skipped", "zizmor found no workflow files to scan")
+
         try:
             data = json.loads(raw) if raw.strip() else None
         except json.JSONDecodeError:
             return ToolRun(tool, "failed",
                            f"output was not JSON. stderr: {proc.stderr.strip()[:200]}")
 
-        if proc.returncode not in (0, 1):
+        if proc.returncode not in _OK_CODES.get(tool, _DEFAULT_OK_CODES):
             return ToolRun(tool, "failed",
                            f"exit code {proc.returncode}. stderr: {proc.stderr.strip()[:200]}")
 

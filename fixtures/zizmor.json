@@ -1,0 +1,222 @@
+[
+  {
+    "ident": "dangerous-triggers",
+    "desc": "use of fundamentally insecure workflow trigger",
+    "url": "https://docs.zizmor.sh/audits/#dangerous-triggers",
+    "determinations": {
+      "confidence": "Medium",
+      "severity": "High",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "prefix": null,
+              "given_path": ".github/workflows/build.yml",
+              "verbatim_path": ".github/workflows/build.yml"
+            }
+          },
+          "annotation": "pull_request_target is almost always used insecurely",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 8,
+              "column": 0
+            },
+            "end_point": {
+              "row": 8,
+              "column": 40
+            },
+            "offset_span": {
+              "start": 0,
+              "end": 0
+            }
+          },
+          "feature": "pull_request_target"
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  },
+  {
+    "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
+    "determinations": {
+      "confidence": "High",
+      "severity": "High",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "prefix": null,
+              "given_path": ".github/workflows/build.yml",
+              "verbatim_path": ".github/workflows/build.yml"
+            }
+          },
+          "annotation": "write-all is overly broad",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 11,
+              "column": 0
+            },
+            "end_point": {
+              "row": 11,
+              "column": 40
+            },
+            "offset_span": {
+              "start": 0,
+              "end": 0
+            }
+          },
+          "feature": "write-all"
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  },
+  {
+    "ident": "unpinned-uses",
+    "desc": "unpinned action reference",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses",
+    "determinations": {
+      "confidence": "High",
+      "severity": "High",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "prefix": null,
+              "given_path": ".github/workflows/build.yml",
+              "verbatim_path": ".github/workflows/build.yml"
+            }
+          },
+          "annotation": "action is not pinned to a tag, branch, or hash ref",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 17,
+              "column": 0
+            },
+            "end_point": {
+              "row": 17,
+              "column": 40
+            },
+            "offset_span": {
+              "start": 0,
+              "end": 0
+            }
+          },
+          "feature": "actions/checkout@main"
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  },
+  {
+    "ident": "artipacked",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "url": "https://docs.zizmor.sh/audits/#artipacked",
+    "determinations": {
+      "confidence": "Low",
+      "severity": "Medium",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "prefix": null,
+              "given_path": ".github/workflows/build.yml",
+              "verbatim_path": ".github/workflows/build.yml"
+            }
+          },
+          "annotation": "does not set persist-credentials: false",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 17,
+              "column": 0
+            },
+            "end_point": {
+              "row": 17,
+              "column": 40
+            },
+            "offset_span": {
+              "start": 0,
+              "end": 0
+            }
+          },
+          "feature": "actions/checkout@main"
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  },
+  {
+    "ident": "template-injection",
+    "desc": "code injection via template expansion",
+    "url": "https://docs.zizmor.sh/audits/#template-injection",
+    "determinations": {
+      "confidence": "High",
+      "severity": "High",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "prefix": null,
+              "given_path": ".github/workflows/build.yml",
+              "verbatim_path": ".github/workflows/build.yml"
+            }
+          },
+          "annotation": "may expand into attacker-controllable code",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 22,
+              "column": 0
+            },
+            "end_point": {
+              "row": 22,
+              "column": 40
+            },
+            "offset_span": {
+              "start": 0,
+              "end": 0
+            }
+          },
+          "feature": "github.event.pull_request.title"
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  }
+]

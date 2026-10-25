@@ -44,7 +44,7 @@ LAYER_NAMES = dict(LAYERS)
 COVERAGE = {
     "source": ["gitleaks", "semgrep"],
     "dependencies": ["trivy"],
-    "pipeline": [],  # needs a CI/CD-specific scanner, not included yet
+    "pipeline": ["zizmor"],  # checks GitHub Actions workflow files
     "container": ["trivy"],
     "infrastructure": ["trivy"],
     "kubernetes": ["trivy"],

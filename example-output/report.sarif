@@ -38,6 +38,30 @@
               }
             },
             {
+              "id": "zizmor/dangerous-triggers",
+              "shortDescription": {
+                "text": "use of fundamentally insecure workflow trigger"
+              }
+            },
+            {
+              "id": "zizmor/excessive-permissions",
+              "shortDescription": {
+                "text": "overly broad permissions"
+              }
+            },
+            {
+              "id": "zizmor/unpinned-uses",
+              "shortDescription": {
+                "text": "unpinned action reference"
+              }
+            },
+            {
+              "id": "zizmor/template-injection",
+              "shortDescription": {
+                "text": "code injection via template expansion"
+              }
+            },
+            {
               "id": "trivy/DS002",
               "shortDescription": {
                 "text": "Image user should not be 'root'"
@@ -77,6 +101,12 @@
               "id": "trivy/CVE-2019-10906",
               "shortDescription": {
                 "text": "Jinja2: sandbox escape through str.format_map"
+              }
+            },
+            {
+              "id": "zizmor/artipacked",
+              "shortDescription": {
+                "text": "credential persistence through GitHub Actions artifacts"
               }
             },
             {
@@ -215,6 +245,118 @@
             "category": "dependency",
             "tool": "trivy",
             "layer": "dependencies"
+          }
+        },
+        {
+          "ruleId": "zizmor/dangerous-triggers",
+          "level": "error",
+          "message": {
+            "text": "use of fundamentally insecure workflow trigger. pull_request_target is almost always used insecurely Fix: Explanation and remedy: https://docs.zizmor.sh/audits/#dangerous-triggers"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sample-app/.github/workflows/build.yml"
+                },
+                "region": {
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "3f35eec0b30d7352d4236371b3dce4a214796a6c5509e6e430f2fc32365cda92"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "zizmor",
+            "layer": "pipeline"
+          }
+        },
+        {
+          "ruleId": "zizmor/excessive-permissions",
+          "level": "error",
+          "message": {
+            "text": "overly broad permissions. write-all is overly broad Fix: Explanation and remedy: https://docs.zizmor.sh/audits/#excessive-permissions"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sample-app/.github/workflows/build.yml"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "77c860d7d4dfcb67f677c860ea9505687d731d6f1f8278602818db7753beb70d"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "zizmor",
+            "layer": "pipeline"
+          }
+        },
+        {
+          "ruleId": "zizmor/unpinned-uses",
+          "level": "error",
+          "message": {
+            "text": "unpinned action reference. action is not pinned to a tag, branch, or hash ref Fix: Explanation and remedy: https://docs.zizmor.sh/audits/#unpinned-uses"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sample-app/.github/workflows/build.yml"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "b55c18b7f9e46493051d844adacc337cdc2cc02c3e61bb3988924549731bf594"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "zizmor",
+            "layer": "pipeline"
+          }
+        },
+        {
+          "ruleId": "zizmor/template-injection",
+          "level": "error",
+          "message": {
+            "text": "code injection via template expansion. may expand into attacker-controllable code Fix: Explanation and remedy: https://docs.zizmor.sh/audits/#template-injection"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sample-app/.github/workflows/build.yml"
+                },
+                "region": {
+                  "startLine": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "78cdb78fe1822405bbdb9b7f46e4f84caabfdaaff61d0c7e8901f90a053ff04a"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "zizmor",
+            "layer": "pipeline"
           }
         },
         {
@@ -405,6 +547,34 @@
             "category": "dependency",
             "tool": "trivy",
             "layer": "dependencies"
+          }
+        },
+        {
+          "ruleId": "zizmor/artipacked",
+          "level": "warning",
+          "message": {
+            "text": "credential persistence through GitHub Actions artifacts. does not set persist-credentials: false Fix: Explanation and remedy: https://docs.zizmor.sh/audits/#artipacked"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sample-app/.github/workflows/build.yml"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "f3069ce3615f88c9eb2255980b2cd788d02f3ed5d86ab3a2a3ab0b55cdc17699"
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "config",
+            "tool": "zizmor",
+            "layer": "pipeline"
           }
         },
         {

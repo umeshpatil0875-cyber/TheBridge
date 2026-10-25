@@ -1,6 +1,6 @@
 {
   "verdict": "blocked",
-  "blocking_count": 11,
+  "blocking_count": 15,
   "first_defective_layer": "source",
   "layers": [
     {
@@ -31,12 +31,14 @@
     {
       "layer": "pipeline",
       "name": "CI/CD pipeline",
-      "status": "not scanned",
-      "findings": 0,
-      "blocking": 0,
-      "worst_severity": null,
-      "checked_by": [],
-      "gap": "no scanner for this layer yet"
+      "status": "DEFECTIVE",
+      "findings": 5,
+      "blocking": 4,
+      "worst_severity": "high",
+      "checked_by": [
+        "zizmor"
+      ],
+      "gap": ""
     },
     {
       "layer": "container",
@@ -101,6 +103,11 @@
       "name": "trivy",
       "status": "demo",
       "detail": "9 finding(s) from sample output"
+    },
+    {
+      "name": "zizmor",
+      "status": "demo",
+      "detail": "5 finding(s) from sample output"
     }
   ],
   "findings": [
@@ -168,6 +175,58 @@
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-8341",
       "fix": "Upgrade jinja2 to 2.10.1 or newer.",
       "layer": "dependencies"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "dangerous-triggers",
+      "severity": "high",
+      "title": "use of fundamentally insecure workflow trigger",
+      "file": ".github/workflows/build.yml",
+      "line": 9,
+      "package": "",
+      "description": "pull_request_target is almost always used insecurely",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#dangerous-triggers",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "excessive-permissions",
+      "severity": "high",
+      "title": "overly broad permissions",
+      "file": ".github/workflows/build.yml",
+      "line": 12,
+      "package": "",
+      "description": "write-all is overly broad",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#excessive-permissions",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "unpinned-uses",
+      "severity": "high",
+      "title": "unpinned action reference",
+      "file": ".github/workflows/build.yml",
+      "line": 18,
+      "package": "",
+      "description": "action is not pinned to a tag, branch, or hash ref",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#unpinned-uses",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "template-injection",
+      "severity": "high",
+      "title": "code injection via template expansion",
+      "file": ".github/workflows/build.yml",
+      "line": 23,
+      "package": "",
+      "description": "may expand into attacker-controllable code",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#template-injection",
+      "layer": "pipeline"
     },
     {
       "tool": "trivy",
@@ -259,6 +318,19 @@
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906",
       "fix": "Upgrade jinja2 to 2.10.1 or newer.",
       "layer": "dependencies"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "artipacked",
+      "severity": "medium",
+      "title": "credential persistence through GitHub Actions artifacts",
+      "file": ".github/workflows/build.yml",
+      "line": 18,
+      "package": "",
+      "description": "does not set persist-credentials: false",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#artipacked",
+      "layer": "pipeline"
     },
     {
       "tool": "semgrep",
