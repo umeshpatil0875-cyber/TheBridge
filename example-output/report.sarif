@@ -8,6 +8,12 @@
           "name": "SecureBridge",
           "rules": [
             {
+              "id": "trivy/AVD-AWS-0107",
+              "shortDescription": {
+                "text": "Security group allows unrestricted ingress from the internet"
+              }
+            },
+            {
               "id": "trivy/CVE-2018-18074",
               "shortDescription": {
                 "text": "requests: Authorization header sent to a different host on redirect"
@@ -56,6 +62,12 @@
               }
             },
             {
+              "id": "trivy/KSV017",
+              "shortDescription": {
+                "text": "Privileged container"
+              }
+            },
+            {
               "id": "trivy/CVE-2018-1000656",
               "shortDescription": {
                 "text": "Flask: denial of service via crafted JSON data"
@@ -78,6 +90,34 @@
       },
       "results": [
         {
+          "ruleId": "trivy/AVD-AWS-0107",
+          "level": "error",
+          "message": {
+            "text": "Security group allows unrestricted ingress from the internet. An ingress rule allows traffic from 0.0.0.0/0. Restrict the allowed addresses to the ones that need access. Fix: Set a more restrictive cidr range."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "infra/main.tf"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "df0709274b3581c0a607325f903867c2170d4ed830cd2aa4a7b881129a3b1e43"
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "infrastructure"
+          }
+        },
+        {
           "ruleId": "trivy/CVE-2018-18074",
           "level": "error",
           "message": {
@@ -98,7 +138,8 @@
           "properties": {
             "severity": "critical",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -122,7 +163,8 @@
           "properties": {
             "severity": "critical",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -146,7 +188,8 @@
           "properties": {
             "severity": "critical",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -170,7 +213,8 @@
           "properties": {
             "severity": "critical",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -197,7 +241,8 @@
           "properties": {
             "severity": "high",
             "category": "config",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "container"
           }
         },
         {
@@ -224,7 +269,8 @@
           "properties": {
             "severity": "high",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -251,7 +297,8 @@
           "properties": {
             "severity": "high",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         },
         {
@@ -278,7 +325,36 @@
           "properties": {
             "severity": "high",
             "category": "secret",
-            "tool": "gitleaks"
+            "tool": "gitleaks",
+            "layer": "source"
+          }
+        },
+        {
+          "ruleId": "trivy/KSV017",
+          "level": "error",
+          "message": {
+            "text": "Privileged container. Privileged containers share namespaces with the host system and have extra capabilities. An attacker who breaks in can take over the host. Fix: Change 'containers[].securityContext.privileged' to 'false'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "k8s/deployment.yaml"
+                },
+                "region": {
+                  "startLine": 16
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "securebridge/v1": "0c20f1e2853c4c5563b2598660e9d1a8126ab5afeccfaa797138f51b9368518b"
+          },
+          "properties": {
+            "severity": "high",
+            "category": "config",
+            "tool": "trivy",
+            "layer": "kubernetes"
           }
         },
         {
@@ -302,7 +378,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -326,7 +403,8 @@
           "properties": {
             "severity": "high",
             "category": "dependency",
-            "tool": "trivy"
+            "tool": "trivy",
+            "layer": "dependencies"
           }
         },
         {
@@ -353,7 +431,8 @@
           "properties": {
             "severity": "medium",
             "category": "code",
-            "tool": "semgrep"
+            "tool": "semgrep",
+            "layer": "source"
           }
         }
       ]

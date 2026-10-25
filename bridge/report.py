@@ -16,6 +16,7 @@ import hashlib
 import json
 from collections import Counter
 
+from .layers import LAYER_NAMES, first_defective, summarize
 from .models import SEVERITIES, Finding, severity_rank
 from .policy import Decision
 from .runner import ToolRun
@@ -46,6 +47,25 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
         out += ["", f"**Warning:** {', '.join(skipped)} did not run. "
                 "This report does NOT cover what those scanners check."]
 
+    rows = summarize(runs, findings, decision)
+    out += ["", "## Layers (from code to production)", "",
+            "| # | Layer | Status | Findings | Worst | Checked by |",
+            "| --- | --- | --- | --- | --- | --- |"]
+    for number, row in enumerate(rows, start=1):
+        checked = ", ".join(row["checked_by"]) or f"nobody ({row['gap']})"
+        out.append(f"| {number} | {row['name']} | {row['status']} | {row['findings']} | "
+                   f"{row['worst_severity'] or '-'} | {checked} |")
+    broken = first_defective(rows)
+    if broken:
+        defective = [r["name"] for r in rows if r["status"] == "DEFECTIVE"]
+        out += ["", f"**Defective layers:** {', '.join(defective)}. "
+                f"Start fixing at **{broken['name']}**, the earliest broken layer, "
+                "because problems upstream often carry downstream."]
+    gaps = [r["name"] for r in rows if r["status"] == "not scanned"]
+    if gaps:
+        out += ["", f"**Not scanned:** {', '.join(gaps)}. "
+                "These layers may have problems this report cannot see."]
+
     out += ["", "## Findings by severity", "", "| Severity | Count |", "| --- | --- |"]
     for sev in reversed(SEVERITIES):
         if counts.get(sev):
@@ -57,12 +77,13 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
 
     blocking_ids = {id(f) for f in decision.blocking}
     out += ["", "## All findings", "",
-            "| Severity | Kind | Where | What | Fix | Blocks? |",
-            "| --- | --- | --- | --- | --- | --- |"]
+            "| Severity | Layer | Kind | Where | What | Fix | Blocks? |",
+            "| --- | --- | --- | --- | --- | --- | --- |"]
     for f in _sorted(findings):
         blocks = "yes" if id(f) in blocking_ids else "no"
         what = f"{f.title} ({f.rule_id})".replace("|", "/")
-        out.append(f"| {f.severity} | {f.category} | {_where(f)} | {what} | "
+        out.append(f"| {f.severity} | {LAYER_NAMES.get(f.layer, f.layer)} | {f.category} | "
+                   f"{_where(f)} | {what} | "
                    f"{f.fix.replace('|', '/')} | {blocks} |")
 
     if decision.waived:
@@ -78,10 +99,14 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
 
 def to_json(runs: list[ToolRun], findings: list[Finding], decision: Decision,
             dropped: int) -> str:
+    rows = summarize(runs, findings, decision)
+    broken = first_defective(rows)
     return json.dumps(
         {
             "verdict": "blocked" if decision.blocked else "passed",
             "blocking_count": len(decision.blocking),
+            "first_defective_layer": broken["layer"] if broken else None,
+            "layers": rows,
             "duplicates_merged": dropped,
             "scanners": [{"name": r.name, "status": r.status, "detail": r.detail} for r in runs],
             "findings": [f.to_dict() for f in _sorted(findings)],
@@ -113,7 +138,8 @@ def to_sarif(findings: list[Finding]) -> str:
                 "message": {"text": f"{f.title}. {f.description} Fix: {f.fix}".strip()},
                 "locations": [{"physicalLocation": location}],
                 "partialFingerprints": {"securebridge/v1": fingerprint},
-                "properties": {"severity": f.severity, "category": f.category, "tool": f.tool},
+                "properties": {"severity": f.severity, "category": f.category,
+                               "tool": f.tool, "layer": f.layer},
             }
         )
     doc = {

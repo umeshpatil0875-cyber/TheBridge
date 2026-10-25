@@ -36,6 +36,7 @@ class Finding:
     package: str = ""  # for dependency findings: the library name
     description: str = ""  # longer explanation
     fix: str = ""  # what to do about it
+    layer: str = ""  # which DevOps layer it belongs to (set by layers.classify)
 
     @property
     def dedupe_key(self) -> tuple:

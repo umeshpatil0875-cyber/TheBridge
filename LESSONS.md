@@ -160,6 +160,61 @@ waivers, "secret never leaks", and "no scanners means no fake pass". There is al
 that every sample finding points at a real file and line in `sample-app/`, so the
 demo cannot drift away from the app it claims to scan.
 
+## Lesson 12: the layers (`bridge/layers.py`)
+
+Software does not jump from a developer to users. It travels through a chain, and each
+link can break in its own way:
+
+```
+1 Source code -> 2 Dependencies -> 3 CI/CD pipeline -> 4 Container image
+              -> 5 Infrastructure as code -> 6 Kubernetes -> 7 Running system
+```
+
+| Layer | What lives there | Planted flaw in `sample-app/` |
+| --- | --- | --- |
+| Source code | what developers write, and secrets left in it | SQL injection, fake token |
+| Dependencies | third-party libraries | old Flask, PyYAML, Jinja2, requests |
+| CI/CD pipeline | the automatic build-and-ship line | none yet (no scanner for it) |
+| Container image | the packaged app (Docker) | runs as root |
+| Infrastructure as code | servers and cloud described in files (Terraform) | SSH open to the internet (`infra/main.tf`) |
+| Kubernetes | the system that runs many containers | privileged container (`k8s/deployment.yaml`) |
+| Running system | the live app | none yet (needs live-testing tools) |
+
+Why layers matter: each layer has a different owner and a different fix. A vulnerable
+library is fixed by a developer upgrading a version; an open SSH port is fixed by whoever
+manages the cloud. Saying "11 problems" is noise. Saying "layers 1, 2, 4, 5 and 6 are
+broken, start at layer 1" tells people who must act.
+
+How it works: after the scanners run, `classify()` gives every finding a layer using
+simple, visible rules (a secret or code finding is source code; a library finding is
+dependencies; a config finding is decided by the file, so `Dockerfile` is container,
+`.tf` is infrastructure, a YAML file with `apiVersion` and `kind` is Kubernetes).
+`summarize()` then produces one row per layer, in stack order.
+
+**Why "start at the earliest broken layer":** problems travel downstream. A vulnerable
+library in layer 2 ends up inside the container in layer 4. Fixing upstream often fixes
+several things below it. This is a rule of thumb, not a proof, and the report says so.
+
+**Try it:** run the demo and read the "Layers" section of `out/report.md`. Then delete
+the `"CVE-..."` entries from `fixtures/trivy.json` that belong to dependencies and
+re-run. The Dependencies row should change.
+
+## Lesson 13: "clean" needs proof (`bridge/layers.py`)
+
+A layer with zero findings is only **clean** if some scanner really looked at it. Two
+layers in our stack (CI/CD pipeline, Running system) have no scanner yet, so the report
+says **not scanned**, never "clean". Also, if Trivy is not installed, the container
+layer drops from "clean" to "not scanned" automatically. A green tick for something
+nobody inspected is how real breaches hide, so the bridge refuses to hand one out.
+
+This also gives you a built-in roadmap: each "not scanned" row is a feature to build
+(a pipeline scanner for layer 3, runtime testing for layer 7).
+
+**Limits to know about:** our scanners can only see what is in the files you point them
+at. The Kubernetes layer here means manifest files in the repo, not a live cluster, and
+the container layer means the Dockerfile, not a built image. Scanning the live cluster
+and built images comes later.
+
 ---
 
 ## Running the real scanners

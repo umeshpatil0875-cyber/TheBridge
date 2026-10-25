@@ -1,7 +1,9 @@
 # SecureBridge, phase 1
 
 A small engine that runs several security scanners, translates their different outputs
-into one common format, applies a policy, and answers **passed** or **blocked**.
+into one common format, sorts every finding into a DevOps **layer** (source code,
+dependencies, pipeline, container, infrastructure, Kubernetes, running system), applies a
+policy, and answers **passed** or **blocked**, naming which layers are defective.
 It is the core of a future DevSecOps SaaS. Start with `LESSONS.md` if the terms are new.
 
 ## Try it now (no installs, Python 3.9+ only)
@@ -34,8 +36,8 @@ Missing tools are reported as `skipped`, never as a clean result. Exit code: `0`
 ```
 sample-app/   intentionally vulnerable app (never deploy it)
 fixtures/     hand-written sample scanner outputs for --demo (see its README)
-bridge/       models, adapters, runner, policy, report, cli
+bridge/       models, adapters, runner, layers, policy, report, cli
 policy.json   the blocking rules and waivers
-tests/        16 tests
+tests/        23 tests
 LESSONS.md    the guided tour
 ```

@@ -13,10 +13,10 @@ from datetime import date
 from io import StringIO
 from unittest import mock
 
-from bridge import adapters, cli, report
+from bridge import adapters, cli, layers, report
 from bridge.models import Finding
 from bridge.policy import evaluate
-from bridge.runner import deduplicate, run_demo
+from bridge.runner import ToolRun, deduplicate, run_demo
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURES = os.path.join(ROOT, "fixtures")
@@ -53,7 +53,7 @@ class AdapterTests(unittest.TestCase):
         findings = adapters.parse_trivy(load("trivy"), APP)
         kinds = [f.category for f in findings]
         self.assertEqual(kinds.count("dependency"), 6)
-        self.assertEqual(kinds.count("config"), 1)
+        self.assertEqual(kinds.count("config"), 3)
         pyyaml = [f for f in findings if f.package == "pyyaml"]
         self.assertTrue(all("Upgrade pyyaml" in f.fix for f in pyyaml))
 
@@ -128,13 +128,82 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(sarif["version"], "2.1.0")
         run = sarif["runs"][0]
         self.assertEqual(run["tool"]["driver"]["name"], "SecureBridge")
-        self.assertEqual(len(run["results"]), 11)
+        self.assertEqual(len(run["results"]), 13)
         rule_ids = {rule["id"] for rule in run["tool"]["driver"]["rules"]}
         for result in run["results"]:
             self.assertIn(result["ruleId"], rule_ids)
             self.assertIn(result["level"], {"error", "warning", "note"})
             uri = result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
             self.assertTrue(uri)
+
+
+class LayerTests(unittest.TestCase):
+    def finding(self, category, file, **kw):
+        return Finding("t", category, "r", kw.get("severity", "high"), "t", file, 1)
+
+    def test_each_kind_of_finding_lands_in_the_right_layer(self):
+        cases = [
+            (self.finding("secret", "config.py"), "source"),
+            (self.finding("code", "app.py"), "source"),
+            (self.finding("dependency", "requirements.txt"), "dependencies"),
+            (self.finding("config", "Dockerfile"), "container"),
+            (self.finding("config", "infra/main.tf"), "infrastructure"),
+            (self.finding("config", "k8s/deployment.yaml"), "kubernetes"),
+            (self.finding("config", ".github/workflows/ci.yml"), "pipeline"),
+        ]
+        for finding, expected in cases:
+            self.assertEqual(layers.classify(finding, APP), expected, finding.file)
+
+    def test_plain_yaml_that_is_not_kubernetes_is_not_labelled_kubernetes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with open(os.path.join(folder, "settings.yaml"), "w") as handle:
+                handle.write("colour: blue\n")
+            finding = self.finding("config", "settings.yaml")
+            self.assertNotEqual(layers.classify(finding, folder), "kubernetes")
+
+    def test_path_tricks_cannot_make_the_classifier_read_outside_the_folder(self):
+        finding = self.finding("config", "../../etc/passwd.yaml")
+        self.assertNotEqual(layers.classify(finding, APP), "kubernetes")
+
+    def classified(self):
+        runs = [run_demo(t, FIXTURES, APP) for t in ("gitleaks", "semgrep", "trivy")]
+        findings, _ = deduplicate([f for r in runs for f in r.findings])
+        for f in findings:
+            f.layer = layers.classify(f, APP)
+        return runs, findings, evaluate(findings, load_policy_file())
+
+    def test_summary_marks_defective_clean_and_unscanned_layers_honestly(self):
+        runs, findings, decision = self.classified()
+        status = {r["layer"]: r["status"] for r in layers.summarize(runs, findings, decision)}
+        for broken in ("source", "dependencies", "container", "infrastructure", "kubernetes"):
+            self.assertEqual(status[broken], "DEFECTIVE", broken)
+        # Nothing in the bridge checks these, so "clean" would be a lie.
+        self.assertEqual(status["pipeline"], "not scanned")
+        self.assertEqual(status["runtime"], "not scanned")
+
+    def test_first_defective_layer_is_the_earliest_one(self):
+        runs, findings, decision = self.classified()
+        rows = layers.summarize(runs, findings, decision)
+        self.assertEqual(layers.first_defective(rows)["layer"], "source")
+
+    def test_a_scanned_layer_with_no_findings_is_clean_but_only_if_its_scanner_ran(self):
+        runs, _, decision = self.classified()
+        ran = layers.summarize(runs, [], evaluate([], POLICY))
+        self.assertEqual({r["layer"]: r["status"] for r in ran}["container"], "clean")
+        skipped = [ToolRun("trivy", "skipped", "not installed")]
+        rows = layers.summarize(skipped, [], evaluate([], POLICY))
+        self.assertEqual({r["layer"]: r["status"] for r in rows}["container"], "not scanned")
+
+    def test_json_report_names_the_first_defective_layer(self):
+        runs, findings, decision = self.classified()
+        data = json.loads(report.to_json(runs, findings, decision, 0))
+        self.assertEqual(data["first_defective_layer"], "source")
+        self.assertEqual([l["layer"] for l in data["layers"]], [k for k, _ in layers.LAYERS])
+
+
+def load_policy_file():
+    from bridge.policy import load_policy
+    return load_policy(os.path.join(ROOT, "policy.json"))
 
 
 class EndToEndTests(unittest.TestCase):

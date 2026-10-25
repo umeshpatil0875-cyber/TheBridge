@@ -14,6 +14,7 @@ import os
 import sys
 
 from . import report
+from .layers import classify, first_defective, summarize
 from .policy import evaluate, load_policy
 from .runner import deduplicate, run_demo, run_real
 
@@ -55,6 +56,10 @@ def main(argv=None) -> int:
     all_findings = [f for r in runs for f in r.findings]
     findings, dropped = deduplicate(all_findings)
 
+    # 2b. Decide which DevOps layer each finding belongs to.
+    for finding in findings:
+        finding.layer = classify(finding, root)
+
     # 3. Ask the policy whether this is acceptable.
     decision = evaluate(findings, load_policy(args.policy))
 
@@ -74,7 +79,15 @@ def main(argv=None) -> int:
         print(f"{r.name:9} {r.status:8} {r.detail}")
     print(f"\n{len(findings)} finding(s), {len(decision.blocking)} blocking, "
           f"{len(decision.waived)} waived, {dropped} duplicate(s) merged")
-    print(f"reports written to {args.out}/")
+    print("\nLayers, from code to production:")
+    rows = summarize(runs, findings, decision)
+    for number, row in enumerate(rows, start=1):
+        extra = f" ({row['findings']} finding(s))" if row["findings"] else ""
+        print(f"  {number}. {row['name']:<24} {row['status']}{extra}")
+    broken = first_defective(rows)
+    if broken:
+        print(f"Start fixing at: {broken['name']}")
+    print(f"\nreports written to {args.out}/")
     print("VERDICT:", "BLOCKED" if decision.blocked else "PASSED")
     return 1 if decision.blocked else 0
 

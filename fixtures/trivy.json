@@ -78,7 +78,52 @@
           "Resolution": "Add 'USER <non root user name>' line to the Dockerfile",
           "Severity": "HIGH",
           "PrimaryURL": "https://avd.aquasec.com/misconfig/ds002",
-          "CauseMetadata": {"StartLine": 1, "EndLine": 6}
+          "CauseMetadata": {
+            "StartLine": 1,
+            "EndLine": 6
+          }
+        }
+      ]
+    },
+    {
+      "Target": "k8s/deployment.yaml",
+      "Class": "config",
+      "Type": "kubernetes",
+      "Misconfigurations": [
+        {
+          "ID": "KSV017",
+          "AVDID": "AVD-KSV-0017",
+          "Title": "Privileged container",
+          "Description": "Privileged containers share namespaces with the host system and have extra capabilities. An attacker who breaks in can take over the host.",
+          "Message": "Container 'app' of Deployment 'demo-app' should set 'securityContext.privileged' to false",
+          "Resolution": "Change 'containers[].securityContext.privileged' to 'false'.",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ksv017",
+          "CauseMetadata": {
+            "StartLine": 16,
+            "EndLine": 20
+          }
+        }
+      ]
+    },
+    {
+      "Target": "infra/main.tf",
+      "Class": "config",
+      "Type": "terraform",
+      "Misconfigurations": [
+        {
+          "ID": "AVD-AWS-0107",
+          "AVDID": "AVD-AWS-0107",
+          "Title": "Security group allows unrestricted ingress from the internet",
+          "Description": "An ingress rule allows traffic from 0.0.0.0/0. Restrict the allowed addresses to the ones that need access.",
+          "Message": "Security group rule allows ingress from public internet.",
+          "Resolution": "Set a more restrictive cidr range.",
+          "Severity": "CRITICAL",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/avd-aws-0107",
+          "CauseMetadata": {
+            "StartLine": 5,
+            "EndLine": 10
+          }
         }
       ]
     }

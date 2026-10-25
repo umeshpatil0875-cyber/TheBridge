@@ -1,6 +1,90 @@
 {
   "verdict": "blocked",
-  "blocking_count": 9,
+  "blocking_count": 11,
+  "first_defective_layer": "source",
+  "layers": [
+    {
+      "layer": "source",
+      "name": "Source code",
+      "status": "DEFECTIVE",
+      "findings": 4,
+      "blocking": 3,
+      "worst_severity": "high",
+      "checked_by": [
+        "gitleaks",
+        "semgrep"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "dependencies",
+      "name": "Dependencies",
+      "status": "DEFECTIVE",
+      "findings": 6,
+      "blocking": 5,
+      "worst_severity": "critical",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "pipeline",
+      "name": "CI/CD pipeline",
+      "status": "not scanned",
+      "findings": 0,
+      "blocking": 0,
+      "worst_severity": null,
+      "checked_by": [],
+      "gap": "no scanner for this layer yet"
+    },
+    {
+      "layer": "container",
+      "name": "Container image",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "infrastructure",
+      "name": "Infrastructure as code",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "critical",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "kubernetes",
+      "name": "Kubernetes",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "runtime",
+      "name": "Running system",
+      "status": "not scanned",
+      "findings": 0,
+      "blocking": 0,
+      "worst_severity": null,
+      "checked_by": [],
+      "gap": "no scanner for this layer yet"
+    }
+  ],
   "duplicates_merged": 0,
   "scanners": [
     {
@@ -16,10 +100,23 @@
     {
       "name": "trivy",
       "status": "demo",
-      "detail": "7 finding(s) from sample output"
+      "detail": "9 finding(s) from sample output"
     }
   ],
   "findings": [
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "AVD-AWS-0107",
+      "severity": "critical",
+      "title": "Security group allows unrestricted ingress from the internet",
+      "file": "infra/main.tf",
+      "line": 5,
+      "package": "",
+      "description": "An ingress rule allows traffic from 0.0.0.0/0. Restrict the allowed addresses to the ones that need access.",
+      "fix": "Set a more restrictive cidr range.",
+      "layer": "infrastructure"
+    },
     {
       "tool": "trivy",
       "category": "dependency",
@@ -30,7 +127,8 @@
       "line": null,
       "package": "requests",
       "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2018-18074",
-      "fix": "Upgrade requests to 2.20.0 or newer."
+      "fix": "Upgrade requests to 2.20.0 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -42,7 +140,8 @@
       "line": null,
       "package": "pyyaml",
       "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-14343",
-      "fix": "Upgrade pyyaml to 5.4 or newer."
+      "fix": "Upgrade pyyaml to 5.4 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -54,7 +153,8 @@
       "line": null,
       "package": "pyyaml",
       "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-1747",
-      "fix": "Upgrade pyyaml to 5.3.1 or newer."
+      "fix": "Upgrade pyyaml to 5.3.1 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -66,7 +166,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-8341",
-      "fix": "Upgrade jinja2 to 2.10.1 or newer."
+      "fix": "Upgrade jinja2 to 2.10.1 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -78,7 +179,8 @@
       "line": 1,
       "package": "",
       "description": "Running containers as root gives an attacker full control if they break into the app. Add a USER line with a non-root user.",
-      "fix": "Add 'USER <non root user name>' line to the Dockerfile"
+      "fix": "Add 'USER <non root user name>' line to the Dockerfile",
+      "layer": "container"
     },
     {
       "tool": "semgrep",
@@ -90,7 +192,8 @@
       "line": 20,
       "package": "",
       "description": "Weakness type: CWE-89: SQL Injection.",
-      "fix": "User input is used to build an SQL string. Use parameterized queries instead."
+      "fix": "User input is used to build an SQL string. Use parameterized queries instead.",
+      "layer": "source"
     },
     {
       "tool": "semgrep",
@@ -102,7 +205,8 @@
       "line": 28,
       "package": "",
       "description": "Weakness type: CWE-78: OS Command Injection.",
-      "fix": "Found 'subprocess' call with shell=True. This allows command injection. Pass a list of arguments and drop shell=True."
+      "fix": "Found 'subprocess' call with shell=True. This allows command injection. Pass a list of arguments and drop shell=True.",
+      "layer": "source"
     },
     {
       "tool": "gitleaks",
@@ -114,7 +218,21 @@
       "line": 5,
       "package": "",
       "description": "A credential-like value is stored in source code. (The value itself is intentionally left out of this report.)",
-      "fix": "Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead."
+      "fix": "Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead.",
+      "layer": "source"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "KSV017",
+      "severity": "high",
+      "title": "Privileged container",
+      "file": "k8s/deployment.yaml",
+      "line": 16,
+      "package": "",
+      "description": "Privileged containers share namespaces with the host system and have extra capabilities. An attacker who breaks in can take over the host.",
+      "fix": "Change 'containers[].securityContext.privileged' to 'false'.",
+      "layer": "kubernetes"
     },
     {
       "tool": "trivy",
@@ -126,7 +244,8 @@
       "line": null,
       "package": "flask",
       "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2018-1000656",
-      "fix": "Upgrade flask to 0.12.3 or newer."
+      "fix": "Upgrade flask to 0.12.3 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "trivy",
@@ -138,7 +257,8 @@
       "line": null,
       "package": "jinja2",
       "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906",
-      "fix": "Upgrade jinja2 to 2.10.1 or newer."
+      "fix": "Upgrade jinja2 to 2.10.1 or newer.",
+      "layer": "dependencies"
     },
     {
       "tool": "semgrep",
@@ -150,7 +270,8 @@
       "line": 33,
       "package": "",
       "description": "Weakness type: CWE-489: Active Debug Code.",
-      "fix": "Running Flask with debug=True can expose an interactive console. Turn it off in production."
+      "fix": "Running Flask with debug=True can expose an interactive console. Turn it off in production.",
+      "layer": "source"
     }
   ]
 }
