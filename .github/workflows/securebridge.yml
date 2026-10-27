@@ -37,9 +37,9 @@ env:
   # actually used are printed in the run log (step "Show scanner versions").
   # To make runs repeatable, copy those numbers here, for example "8.30.1".
   # The run summary ends with a "Versions to pin" block you can copy line by line.
-  GITLEAKS_VERSION: ""
-  TRIVY_VERSION: ""
-  OPA_VERSION: ""
+  GITLEAKS_VERSION: "8.30.1"
+  TRIVY_VERSION: "0.76.1"
+  OPA_VERSION: "1.21.4"
 
 jobs:
   test:
@@ -143,6 +143,9 @@ jobs:
       # If the policy blocks, this step exits with code 1 and the job turns red.
       # The steps below use "if: always()" so results are still published.
       - name: Run SecureBridge
+        env:
+          SECUREBRIDGE_URL: ${{ secrets.SECUREBRIDGE_URL }}
+          SECUREBRIDGE_TOKEN: ${{ secrets.SECUREBRIDGE_TOKEN }}
         run: python -m bridge scan "$SCAN_PATH" --policy-engine "$POLICY_ENGINE" --out out
 
       - name: Show the report in the run summary
