@@ -48,6 +48,11 @@ def main(argv=None) -> int:
                              "report can show whether the two agree. opa: OPA decides; if OPA cannot "
                              "answer, the scan fails closed with exit code 2")
     parser.add_argument("--out", default="out", help="folder for the reports")
+    parser.add_argument("--upload-url", default=os.environ.get("SECUREBRIDGE_URL", ""),
+                        help="base URL of a SecureBridge API (for example http://localhost:8080); "
+                             "the finished report is uploaded there")
+    parser.add_argument("--token", default=os.environ.get("SECUREBRIDGE_TOKEN", ""),
+                        help="project API token (better: set SECUREBRIDGE_TOKEN)")
     args = parser.parse_args(argv)
 
     root = os.path.abspath(args.path)
@@ -107,6 +112,15 @@ def main(argv=None) -> int:
         with open(os.path.join(args.out, name), "w") as handle:
             handle.write(text)
 
+    # 4b. Optionally send the report to the API so it is stored with the history.
+    # An upload problem never changes the verdict: the gate must work offline too.
+    if args.upload_url:
+        from .upload import upload_report
+        ok, message = upload_report(args.upload_url, args.token, outputs["report.json"])
+        print(f"upload: {message}", file=sys.stdout if ok else sys.stderr)
+    else:
+        print("upload: skipped (no SECUREBRIDGE_URL / --upload-url set)")
+
     # 5. Tell the human, then tell the pipeline (via the exit code).
     for r in runs:
         print(f"{r.name:9} {r.status:8} {r.detail}")
@@ -122,7 +136,8 @@ def main(argv=None) -> int:
         print(f"Start fixing at: {broken['name']}")
     if policy_check:
         extra = f" ({policy_check['detail']})" if policy_check["detail"] else ""
-        print(f"\nOPA shadow check: {policy_check['status']}{extra}")
+        label = "OPA enforcing" if policy_check.get("mode") == "enforce" else "OPA shadow check"
+        print(f"\n{label}: {policy_check['status']}{extra}")
     print(f"\nreports written to {args.out}/")
     if opa_failed:
         print("error: OPA is the decider but gave no answer, so the scan fails closed.",
