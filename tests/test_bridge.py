@@ -13,7 +13,7 @@ from datetime import date
 from io import StringIO
 from unittest import mock
 
-from bridge import adapters, cli, layers, report
+from bridge import adapters, cli, layers, opa, report
 from bridge.models import Finding
 from bridge.policy import evaluate
 from bridge.runner import ToolRun, deduplicate, run_demo
@@ -330,6 +330,163 @@ class ZizmorRunTests(unittest.TestCase):
         self.assertIn("--format=json", command)
 
 
+def demo_state():
+    """Findings from the sample outputs, classified, plus the Python policy's decision."""
+    runs = [run_demo(t, FIXTURES, APP) for t in ("gitleaks", "semgrep", "trivy", "zizmor")]
+    findings, _ = deduplicate([f for r in runs for f in r.findings])
+    for f in findings:
+        f.layer = layers.classify(f, APP)
+    policy = load_policy_file()
+    return findings, policy, evaluate(findings, policy)  # uses today's real date, like the CLI
+
+
+def opa_answer(blocked, blocking, waived, invalid=0):
+    value = {"blocked": blocked, "blocking": blocking, "waived": waived, "invalid": invalid,
+             "blocking_indexes": []}
+    return json.dumps({"result": [{"expressions": [{"value": value, "text": "x"}]}]})
+
+
+@unittest.skipIf(os.name == "nt", "uses small shell-script stand-ins for opa")
+class OpaShadowTests(unittest.TestCase):
+    """OPA cannot run in the environment this project was written in, so these tests use a
+    stand-in `opa` that prints a canned answer. They prove the plumbing (input, parsing,
+    comparison, reporting). They cannot prove the Rego rules are right: `opa test` does that."""
+
+    def with_stub(self, stdout, exit_code=0):
+        script = f"#!/bin/sh\ncat <<'EOF'\n{stdout}\nEOF\nexit {exit_code}\n"
+        bin_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(bin_dir.cleanup)
+        path = os.path.join(bin_dir.name, "opa")
+        with open(path, "w") as handle:
+            handle.write(script)
+        os.chmod(path, 0o755)
+        patcher = mock.patch.dict(os.environ, {
+            "PATH": bin_dir.name + os.pathsep + os.environ.get("PATH", "")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_the_input_sent_to_opa_has_findings_policy_and_date(self):
+        findings, policy, _ = demo_state()
+        doc = opa.build_input(findings, policy, date(2026, 10, 25))
+        self.assertEqual(doc["today"], "2026-10-25")
+        self.assertEqual(doc["policy"], policy)
+        self.assertEqual(len(doc["findings"]), len(findings))
+        for key in ("category", "severity", "rule_id", "file", "layer"):
+            self.assertIn(key, doc["findings"][0])
+
+    def test_agreement_is_reported_when_both_engines_give_the_same_answer(self):
+        findings, policy, decision = demo_state()
+        self.with_stub(opa_answer(decision.blocked, len(decision.blocking), len(decision.waived)))
+        check = opa.shadow_check(findings, policy, decision)
+        self.assertEqual(check["status"], "agree")
+        self.assertEqual(check["opa"]["blocking"], len(decision.blocking))
+
+    def test_disagreement_is_reported_with_the_difference(self):
+        findings, policy, decision = demo_state()
+        self.with_stub(opa_answer(False, 0, len(decision.waived)))
+        check = opa.shadow_check(findings, policy, decision)
+        self.assertEqual(check["status"], "disagree")
+        self.assertIn("blocked: python=True opa=False", check["detail"])
+
+    def test_an_unknown_severity_seen_by_opa_counts_as_a_disagreement(self):
+        findings, policy, decision = demo_state()
+        self.with_stub(opa_answer(decision.blocked, len(decision.blocking),
+                                  len(decision.waived), invalid=2))
+        check = opa.shadow_check(findings, policy, decision)
+        self.assertEqual(check["status"], "disagree")
+        self.assertIn("unknown severity", check["detail"])
+
+    def test_an_undefined_answer_is_an_error_not_a_pass(self):
+        findings, policy, decision = demo_state()
+        self.with_stub("{}")
+        check = opa.shadow_check(findings, policy, decision)
+        self.assertEqual(check["status"], "error")
+        self.assertIn("undefined", check["detail"])
+
+    def test_opa_failing_is_an_error_with_its_message(self):
+        findings, policy, decision = demo_state()
+        self.with_stub("rego_parse_error: unexpected token", exit_code=2)
+        check = opa.shadow_check(findings, policy, decision)
+        self.assertEqual(check["status"], "error")
+        self.assertIn("rego_parse_error", check["detail"])
+
+    def test_a_missing_opa_is_skipped_not_agreed(self):
+        findings, policy, decision = demo_state()
+        with mock.patch("bridge.opa.shutil.which", return_value=None):
+            check = opa.shadow_check(findings, policy, decision)
+        self.assertEqual(check["status"], "skipped")
+
+    def run_cli(self, argv):
+        buffer = StringIO()
+        with redirect_stdout(buffer):
+            code = cli.main(argv)
+        return code, buffer.getvalue()
+
+    def test_shadow_mode_never_changes_the_real_verdict_or_exit_code(self):
+        findings, policy, decision = demo_state()
+        self.with_stub(opa_answer(False, 0, 0))  # OPA says "pass", Python says "blocked"
+        with tempfile.TemporaryDirectory() as out:
+            code, text = self.run_cli(["scan", APP, "--demo", "--policy-engine", "shadow",
+                                       "--out", out])
+            with open(os.path.join(out, "report.md")) as handle:
+                markdown = handle.read()
+            with open(os.path.join(out, "report.json")) as handle:
+                data = json.load(handle)
+        self.assertEqual(code, 1)
+        self.assertIn("VERDICT: BLOCKED", text)
+        self.assertIn("DISAGREE", markdown)
+        self.assertEqual(data["policy_check"]["status"], "disagree")
+        self.assertEqual(data["verdict"], "blocked")
+
+    def test_shadow_mode_reports_agreement_in_the_report(self):
+        findings, policy, decision = demo_state()
+        self.with_stub(opa_answer(decision.blocked, len(decision.blocking), len(decision.waived)))
+        with tempfile.TemporaryDirectory() as out:
+            self.run_cli(["scan", APP, "--demo", "--policy-engine", "shadow", "--out", out])
+            with open(os.path.join(out, "report.md")) as handle:
+                self.assertIn("the two engines agree", handle.read())
+
+    def test_without_the_flag_no_opa_section_appears(self):
+        with tempfile.TemporaryDirectory() as out:
+            self.run_cli(["scan", APP, "--demo", "--out", out])
+            with open(os.path.join(out, "report.md")) as handle:
+                self.assertNotIn("Policy check", handle.read())
+
+
+class RegoFileGuardTests(unittest.TestCase):
+    """We cannot run Rego here, but we can stop the two copies of the rules drifting apart."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(ROOT, "policy", "securebridge.rego")) as handle:
+            cls.rego = handle.read()
+        with open(os.path.join(ROOT, "policy", "securebridge_test.rego")) as handle:
+            cls.rego_tests = handle.read()
+
+    def test_severity_order_matches_the_python_list(self):
+        import re
+        from bridge.models import SEVERITIES
+        match = re.search(r"severities\s*:=\s*\[([^\]]*)\]", self.rego)
+        self.assertIsNotNone(match)
+        listed = re.findall(r'"([^"]+)"', match.group(1))
+        self.assertEqual(listed, SEVERITIES)
+
+    def test_the_policy_declares_its_package_and_syntax_version(self):
+        self.assertIn("package securebridge\n", self.rego)
+        self.assertIn("import rego.v1", self.rego)
+        self.assertIn("decision :=", self.rego)
+
+    def test_rego_unit_tests_exist_for_the_important_rules(self):
+        import re
+        names = re.findall(r"^(test_\w+)\s+if", self.rego_tests, flags=re.M)
+        self.assertGreaterEqual(len(names), 9)
+        self.assertEqual(len(names), len(set(names)))  # a duplicate name would hide a test
+
+    def test_every_python_policy_behaviour_has_a_rego_test_counterpart(self):
+        for phrase in ("secret", "waiver", "expired", "never", "unknown_severity"):
+            self.assertIn(phrase, self.rego_tests)
+
+
 class SarifPathTests(unittest.TestCase):
     def test_prefix_makes_paths_relative_to_the_repo_root(self):
         finding = Finding("t", "code", "r", "high", "t", "config.py", 5)
@@ -396,6 +553,28 @@ class WorkflowTests(unittest.TestCase):
         shown = steps["Show scanner versions"]["run"]
         for tool in ("gitleaks version", "trivy --version", "semgrep --version"):
             self.assertIn(tool, shown)
+
+    def test_the_scan_runs_opa_in_shadow_mode_and_the_python_policy_still_decides(self):
+        steps = {s.get("name", ""): s for s in self.wf["jobs"]["scan"]["steps"]}
+        self.assertIn("--policy-engine shadow", steps["Run SecureBridge"]["run"])
+        self.assertIn("opa version", steps["Show scanner versions"]["run"])
+        self.assertIn("install-opa.sh", steps["Install OPA"]["run"])
+
+    def test_a_policy_job_checks_and_unit_tests_the_rego_files(self):
+        job = self.wf["jobs"]["policy"]
+        commands = " ".join(s.get("run", "") for s in job["steps"])
+        self.assertIn("opa check policy/", commands)
+        self.assertIn("opa test policy/", commands)
+        self.assertNotIn("permissions", job)  # inherits the read-only default
+
+    def test_the_policy_job_does_not_hold_up_or_hide_the_scan(self):
+        self.assertEqual(self.wf["jobs"]["scan"]["needs"], "test")  # not "policy"
+        self.assertNotIn("needs", self.wf["jobs"]["policy"])
+
+    def test_the_install_script_is_run_through_bash_so_file_permissions_cannot_break_it(self):
+        for name in ("policy", "scan"):
+            runs = " ".join(s.get("run", "") for s in self.wf["jobs"][name]["steps"])
+            self.assertIn("bash scripts/install-opa.sh", runs)
 
     def test_install_step_fails_loudly_and_lists_release_files(self):
         steps = {s.get("name", ""): s for s in self.wf["jobs"]["scan"]["steps"]}

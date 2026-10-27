@@ -15,6 +15,7 @@ import sys
 
 from . import report
 from .layers import classify, first_defective, summarize
+from .opa import shadow_check
 from .policy import evaluate, load_policy
 from .runner import deduplicate, run_demo, run_real
 
@@ -41,6 +42,10 @@ def main(argv=None) -> int:
     parser.add_argument("--demo", action="store_true",
                         help="use saved sample scanner outputs instead of running the tools")
     parser.add_argument("--policy", default=os.path.join(HERE, "policy.json"))
+    parser.add_argument("--policy-engine", choices=["python", "shadow"], default="python",
+                        help="python: the Python rules decide (default). shadow: the Python "
+                             "rules still decide, and OPA evaluates the same findings so the "
+                             "report can show whether the two agree")
     parser.add_argument("--out", default="out", help="folder for the reports")
     args = parser.parse_args(argv)
 
@@ -73,13 +78,19 @@ def main(argv=None) -> int:
         finding.layer = classify(finding, root)
 
     # 3. Ask the policy whether this is acceptable.
-    decision = evaluate(findings, load_policy(args.policy))
+    policy = load_policy(args.policy)
+    decision = evaluate(findings, policy)
+
+    # 3b. Optional: let OPA answer the same question, without letting it change the result.
+    policy_check = None
+    if args.policy_engine == "shadow":
+        policy_check = shadow_check(findings, policy, decision)
 
     # 4. Write the three reports.
     os.makedirs(args.out, exist_ok=True)
     outputs = {
-        "report.md": report.to_markdown(runs, findings, decision, dropped),
-        "report.json": report.to_json(runs, findings, decision, dropped),
+        "report.md": report.to_markdown(runs, findings, decision, dropped, policy_check),
+        "report.json": report.to_json(runs, findings, decision, dropped, policy_check),
         "report.sarif": report.to_sarif(findings, _sarif_prefix(root)),
     }
     for name, text in outputs.items():
@@ -99,6 +110,9 @@ def main(argv=None) -> int:
     broken = first_defective(rows)
     if broken:
         print(f"Start fixing at: {broken['name']}")
+    if policy_check:
+        extra = f" ({policy_check['detail']})" if policy_check["detail"] else ""
+        print(f"\nOPA shadow check: {policy_check['status']}{extra}")
     print(f"\nreports written to {args.out}/")
     print("VERDICT:", "BLOCKED" if decision.blocked else "PASSED")
     return 1 if decision.blocked else 0

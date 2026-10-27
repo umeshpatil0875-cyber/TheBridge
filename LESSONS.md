@@ -494,6 +494,62 @@ Three ideas run through every row:
 
 ---
 
+## Lesson 19: policy as code (OPA and Rego), and how to change rules safely
+
+**The problem.** `policy.json` holds the *settings* ("block secrets at low, code at high"), but the *logic* that applies them lives in Python. At a big company, the people who own security rules (the security team) are not the people who write the engine. They want rules in a small, reviewable, testable language that many tools can share: the CI pipeline, Kubernetes admission, Terraform checks. That is **policy as code**.
+
+**OPA** (Open Policy Agent) is the standard engine for it. You give it three things: *data* (our policy settings), *input* (the findings), and a *policy* written in **Rego**. It answers a question, here `data.securebridge.decision`.
+
+### Rego, line by line (`policy/securebridge.rego`)
+
+- `package securebridge` and `import rego.v1`: the namespace, and the modern Rego syntax. Always include the import.
+- `severities := [...]` and `rank(severity)`: the position in the list is the rank, so `high` outranks `medium`. `some i, s in severities` means "find an index and value pair"; the rule yields `i` for the match.
+- `limit(finding)`: look up the blocking threshold for this finding's category; fall back to `default`.
+- `applies(finding)`: true when the threshold is not `"never"` and the finding's rank is at or above it.
+- `covers(waiver, finding)` is defined **twice**. In Rego, several definitions of the same rule act as an **OR**: a waiver covers a finding if it names no file, or if it names this finding's file.
+- `waived_idx contains i if {...}`: builds a *set* of finding positions that an unexpired waiver excuses. Every line inside the braces must be true (an **AND**). Dates like `2026-12-31` compare correctly as plain text.
+- `blocking_idx`: findings that reach the threshold and are *not* waived.
+- `invalid_idx`: findings whose severity is unknown. This exists because of the biggest Rego trap below.
+- `decision := {...}`: the one object the bridge reads.
+
+### The trap: undefined is not false
+
+In Python a failed comparison is `False`. In Rego, if any line in a rule cannot be satisfied, the whole rule is **undefined**, and undefined quietly produces *nothing*. For a security policy, "nothing" can mean "nothing blocks". A finding with a typo severity such as `"hgih"` would make `rank()` undefined, never match the threshold, and sail through. So we count such findings separately, and the shadow check treats `invalid > 0` as a disagreement. Remember this for any policy language: **decide what happens on bad input, deliberately**.
+
+### Testing policy
+
+`policy/securebridge_test.rego` has 10 tests. Each one is a rule starting with `test_` that feeds fake input with `with input as {...}` and asserts the decision. Run them with `opa test policy/ -v`. `opa check policy/` catches syntax mistakes. Policies that decide whether production ships deserve tests exactly as much as application code does.
+
+### Shadow mode: how you change rules safely
+
+We do not switch the pipeline from Python to Rego in one jump. With `--policy-engine shadow`:
+
+1. Python still decides the exit code (nothing changes for developers).
+2. OPA decides too, on the same findings.
+3. The report prints **agree / disagree / skipped / error**.
+4. When it has said "agree" on many real runs, including runs with waivers and edge cases, we make OPA the enforcer.
+
+Big companies do this with every risky change: *shadow, then warn, then enforce*. Kubernetes policy tools like Kyverno and Gatekeeper have a literal "audit" mode for it.
+
+### Honest limits
+
+I could not install OPA in my workspace, so the Rego was **never run here**. Python-side tests (69) pass, including a stub `opa`, but the first real `opa check` and `opa test` will happen in your GitHub run, in the `policy` job. If it fails, that is normal: paste me the output and we fix it. That is the same loop as the gitleaks and exit-22 fixes.
+
+### Check yourself
+
+1. Why do we keep `policy.json` if the rules move to Rego?
+2. What does it mean that `covers` is defined twice?
+3. Why is "undefined" dangerous in a security policy?
+4. What is the point of shadow mode?
+5. Name two other places where OPA-style policy is used.
+
+**Answers.**
+1. It is the *settings* (data); Rego is the *logic*. Settings change often and by non-programmers, logic changes rarely and is code-reviewed.
+2. Multiple definitions are OR: either one being true makes the rule true.
+3. A rule that cannot be evaluated returns nothing instead of false, so a bad input can silently let things pass. You must handle invalid input explicitly.
+4. To compare the new engine with the old one on real data without risk, and only enforce once they agree.
+5. Kubernetes admission control (Gatekeeper), Terraform plan checks (conftest), API authorization, and CI gates like this one.
+
 ## Running the real scanners
 
 Demo mode reads saved sample outputs from `fixtures/`. Those samples were written by hand

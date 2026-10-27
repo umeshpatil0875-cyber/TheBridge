@@ -30,8 +30,13 @@ def _where(finding: Finding) -> str:
     return f"{finding.file}:{finding.line}" if finding.line else finding.file
 
 
+def _describe(side: dict) -> str:
+    verdict = "BLOCKED" if side["blocked"] else "PASSED"
+    return f"{verdict}, {side['blocking']} blocking, {side['waived']} waived"
+
+
 def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision,
-                dropped: int) -> str:
+                dropped: int, policy_check: dict = None) -> str:
     counts = Counter(f.severity for f in findings)
     out = ["# SecureBridge report", ""]
 
@@ -66,6 +71,22 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
         out += ["", f"**Not scanned:** {', '.join(gaps)}. "
                 "These layers may have problems this report cannot see."]
 
+    if policy_check:
+        out += ["", "## Policy check (OPA in shadow mode)", "",
+                f"- Python policy (this decides): {_describe(policy_check['python'])}"]
+        if policy_check["opa"]:
+            out.append(f"- OPA/Rego policy (watching): {_describe(policy_check['opa'])}")
+        status = policy_check["status"]
+        if status == "agree":
+            out += ["", "**Result: the two engines agree.**"]
+        elif status == "disagree":
+            out += ["", f"**Result: the engines DISAGREE** ({policy_check['detail']}). "
+                    "The Python result above is the one that counts. Find out which engine "
+                    "is wrong before letting OPA decide."]
+        else:
+            out += ["", f"**OPA gave no decision** ({policy_check['status']}: "
+                    f"{policy_check['detail']}). The Python result above is unaffected."]
+
     out += ["", "## Findings by severity", "", "| Severity | Count |", "| --- | --- |"]
     for sev in reversed(SEVERITIES):
         if counts.get(sev):
@@ -98,7 +119,7 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
 
 
 def to_json(runs: list[ToolRun], findings: list[Finding], decision: Decision,
-            dropped: int) -> str:
+            dropped: int, policy_check: dict = None) -> str:
     rows = summarize(runs, findings, decision)
     broken = first_defective(rows)
     return json.dumps(
@@ -106,6 +127,7 @@ def to_json(runs: list[ToolRun], findings: list[Finding], decision: Decision,
             "verdict": "blocked" if decision.blocked else "passed",
             "blocking_count": len(decision.blocking),
             "first_defective_layer": broken["layer"] if broken else None,
+            "policy_check": policy_check,
             "layers": rows,
             "duplicates_merged": dropped,
             "scanners": [{"name": r.name, "status": r.status, "detail": r.detail} for r in runs],

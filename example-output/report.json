@@ -2,6 +2,18 @@
   "verdict": "blocked",
   "blocking_count": 15,
   "first_defective_layer": "source",
+  "policy_check": {
+    "engine": "opa",
+    "mode": "shadow",
+    "python": {
+      "blocked": true,
+      "blocking": 15,
+      "waived": 1
+    },
+    "opa": null,
+    "status": "skipped",
+    "detail": "'opa' is not installed on this machine"
+  },
   "layers": [
     {
       "layer": "source",

@@ -63,8 +63,22 @@ not be tested.
 sample-app/   intentionally vulnerable app (never deploy it)
 fixtures/     hand-written sample scanner outputs for --demo (see its README)
 bridge/       models, adapters, runner, layers, policy, report, cli
-policy.json   the blocking rules and waivers
-tests/        51 tests
+policy.json   the blocking settings and waivers
+policy/       the same rules as Rego (OPA) + Rego unit tests
+scripts/      install-opa.sh (used by the workflow)
+tests/        69 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```
+
+## Policy as code (OPA, shadow mode)
+
+```
+brew install opa            # or: bash scripts/install-opa.sh
+opa check policy/           # syntax check
+opa test policy/ -v         # Rego unit tests
+python -m bridge scan sample-app --policy-engine shadow
+```
+
+Shadow mode: Python still decides the exit code; OPA's answer is shown next to it
+as agree / disagree / skipped / error. See Lesson 19 in LESSONS.md.

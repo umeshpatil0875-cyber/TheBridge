@@ -3,8 +3,10 @@
 LESSON 7 (policy as data): the rules live in policy.json, not in the code. A
 security person can change "block at high" to "block at critical" without touching
 Python. Big companies do the same thing with tools like OPA, where rules are
-written in their own language and reviewed like code. In phase 2 of the project
-this file gets replaced by an OPA/Rego policy; the idea stays identical.
+written in their own language and reviewed like code. Phase 2b adds
+policy/securebridge.rego, which applies the same rules in OPA. policy.json stays
+the settings file; the Rego mirrors the logic and runs in "shadow mode" (its
+answer is compared with this file's, never enforced) until the two always agree.
 
 LESSON 8 (waivers with an expiry date): real teams cannot fix everything today.
 A waiver says "we know about this, here is why it is OK for now, and we will look
