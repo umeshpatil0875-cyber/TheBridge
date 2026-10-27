@@ -72,20 +72,27 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
                 "These layers may have problems this report cannot see."]
 
     if policy_check:
-        out += ["", "## Policy check (OPA in shadow mode)", "",
-                f"- Python policy (this decides): {_describe(policy_check['python'])}"]
+        enforcing = policy_check.get("mode") == "enforce"
+        out += ["", f"## Policy check (OPA {'decides' if enforcing else 'in shadow mode'})", "",
+                f"- Python policy ({'watching' if enforcing else 'this decides'}): "
+                f"{_describe(policy_check['python'])}"]
         if policy_check["opa"]:
-            out.append(f"- OPA/Rego policy (watching): {_describe(policy_check['opa'])}")
+            out.append(f"- OPA/Rego policy ({'this decides' if enforcing else 'watching'}): "
+                       f"{_describe(policy_check['opa'])}")
         status = policy_check["status"]
         if status == "agree":
             out += ["", "**Result: the two engines agree.**"]
         elif status == "disagree":
             out += ["", f"**Result: the engines DISAGREE** ({policy_check['detail']}). "
-                    "The Python result above is the one that counts. Find out which engine "
-                    "is wrong before letting OPA decide."]
+                    + ("The OPA result is the one that counts. Find out which engine is wrong."
+                     if enforcing else
+                     "The Python result above is the one that counts. Find out which "
+                     "engine is wrong before letting OPA decide.")]
         else:
             out += ["", f"**OPA gave no decision** ({policy_check['status']}: "
-                    f"{policy_check['detail']}). The Python result above is unaffected."]
+                    f"{policy_check['detail']}). "
+                    + ("The scan FAILED CLOSED: no verdict was given." if enforcing
+                       else "The Python result above is unaffected.")]
 
     out += ["", "## Findings by severity", "", "| Severity | Count |", "| --- | --- |"]
     for sev in reversed(SEVERITIES):

@@ -27,12 +27,6 @@
 
 **Not scanned:** Running system. These layers may have problems this report cannot see.
 
-## Policy check (OPA in shadow mode)
-
-- Python policy (this decides): BLOCKED, 15 blocking, 1 waived
-
-**OPA gave no decision** (skipped: 'opa' is not installed on this machine). The Python result above is unaffected.
-
 ## Findings by severity
 
 | Severity | Count |

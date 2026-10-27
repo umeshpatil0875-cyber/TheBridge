@@ -12,6 +12,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch: # lets you start it by hand from the Actions tab
+    inputs:
+      scan_path:
+        description: "Folder to scan (sample-app is the broken one, sample-app-fixed the repaired one)"
+        type: choice
+        options: [sample-app, sample-app-fixed]
+        default: sample-app
 
 # Least privilege: by default the workflow may only READ the repository.
 # The scan job is granted one extra permission below, and only that job.
@@ -22,10 +28,15 @@ env:
   # Folder to scan. This demo repo scans the intentionally vulnerable sample app.
   # For a real project, change it to "." to scan the whole repository, which also
   # lets the bridge check its own pipeline files (this workflow) with zizmor.
-  SCAN_PATH: sample-app
+  # When you start the run by hand you can pick the folder; otherwise sample-app.
+  SCAN_PATH: ${{ inputs.scan_path || 'sample-app' }}
+  # Who decides pass/block: "opa" (OPA decides, fails closed if it cannot answer),
+  # "shadow" (Python decides, OPA is compared) or "python".
+  POLICY_ENGINE: opa
   # Scanner versions. Empty means "use the latest release". The versions that were
   # actually used are printed in the run log (step "Show scanner versions").
   # To make runs repeatable, copy those numbers here, for example "8.30.1".
+  # The run summary ends with a "Versions to pin" block you can copy line by line.
   GITLEAKS_VERSION: ""
   TRIVY_VERSION: ""
   OPA_VERSION: ""
@@ -115,10 +126,24 @@ jobs:
           zizmor --version
           opa version
 
+      - name: Print the versions to pin
+        run: |
+          {
+            echo ""
+            echo "## Versions to pin"
+            echo ""
+            echo "Paste these into the env: block of the workflow to make runs repeatable:"
+            echo '```'
+            echo "GITLEAKS_VERSION: \"$(gitleaks version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)\""
+            echo "TRIVY_VERSION: \"$(trivy --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)\""
+            echo "OPA_VERSION: \"$(opa version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # If the policy blocks, this step exits with code 1 and the job turns red.
       # The steps below use "if: always()" so results are still published.
       - name: Run SecureBridge
-        run: python -m bridge scan "$SCAN_PATH" --policy-engine shadow --out out
+        run: python -m bridge scan "$SCAN_PATH" --policy-engine "$POLICY_ENGINE" --out out
 
       - name: Show the report in the run summary
         if: always()

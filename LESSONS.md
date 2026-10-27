@@ -550,6 +550,39 @@ I could not install OPA in my workspace, so the Rego was **never run here**. Pyt
 4. To compare the new engine with the old one on real data without risk, and only enforce once they agree.
 5. Kubernetes admission control (Gatekeeper), Terraform plan checks (conftest), API authorization, and CI gates like this one.
 
+## Lesson 20: pinning, proving the gate both ways, and failing closed
+
+Three small habits that separate a demo from something a team can trust.
+
+### 1. Pinning (repeatable builds)
+
+Until now the workflow downloaded the **latest** scanners every run. That is convenient and dangerous: a new Trivy release can add rules, change output or break parsing, and your pipeline turns red on a day when *you* changed nothing. **Pinning** means writing down the exact version (`TRIVY_VERSION: "0.xx.x"`) so every run uses the same tool. The run summary now ends with a **Versions to pin** block: copy its three lines into the `env:` section of the workflow. Pinning also protects against **supply-chain attacks** (Lesson 17): a hijacked "latest" cannot reach you until you choose to upgrade. The price: you must upgrade on purpose. Tools like Renovate and Dependabot send automatic pull requests for that, so the decision stays visible.
+
+### 2. Red-to-green: prove the gate works both ways
+
+A gate that has only ever said "blocked" is not proven. Maybe it blocks *everything*. `sample-app-fixed/` is the same app with all 12 flaws repaired (each fix is commented `FIX n`). Start the workflow by hand (Actions tab, **Run workflow**) and choose `sample-app-fixed`. A good result is **PASSED** with exit code 0. The same idea is a **positive and negative test**: you need both a case that must fail and a case that must pass. Whatever the fixed app still gets flagged for is also useful: either a real remaining issue or a rule that is too noisy, and each is worth knowing.
+
+Honest caveat: I could not run the real scanners here. The fixed dependency versions and the pinned `actions/checkout` commit are my best knowledge, so if the run still flags something, paste it to me and we fix it together.
+
+### 3. OPA now decides, and fails closed
+
+With `--policy-engine opa`, the Rego rules make the pass/block call. Python still computes its answer, and any disagreement is printed loudly, but OPA wins. The important design choice: **if OPA cannot answer** (not installed, crash, undefined result), the scan exits **2**, not 0. That is called **failing closed**. The opposite, failing open, means a broken checker lets everything through, which is the worst possible failure for a security gate. (Compare a fire door: it is designed to stay shut when the power fails.)
+
+Why switch only now? Shadow mode showed OPA and Python agreed on your real run. For extra safety, keep an eye on the "Policy check" section for a few runs: if it ever says DISAGREE, one engine has a bug.
+
+### Check yourself
+
+1. What can go wrong with "latest" versions, and what is the cost of pinning?
+2. Why test with a clean project as well as a broken one?
+3. What does "fail closed" mean and why is exit code 2 used for it?
+4. In enforcing mode OPA and Python disagree. Who wins, and what should you do?
+
+**Answers.**
+1. New releases can change results or break parsing without you touching anything, and a hijacked release reaches you instantly. Pinning costs you manual (or bot-driven) upgrades.
+2. To prove the gate can say "pass" as well as "block"; otherwise it might just block everything.
+3. When the checker itself fails, the safe default is to stop, not to approve. Exit 2 means "could not decide", which is different from "found problems" (1) and "all clear" (0).
+4. OPA wins. You treat the disagreement as a bug report: work out which engine implements the rule wrongly and fix it.
+
 ## Running the real scanners
 
 Demo mode reads saved sample outputs from `fixtures/`. Those samples were written by hand

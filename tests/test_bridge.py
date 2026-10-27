@@ -453,6 +453,70 @@ class OpaShadowTests(unittest.TestCase):
                 self.assertNotIn("Policy check", handle.read())
 
 
+    def run_enforcing(self, stub=None, missing=False):
+        findings, policy, decision = demo_state()
+        if stub is not None:
+            self.with_stub(stub)
+        with tempfile.TemporaryDirectory() as out:
+            if missing:
+                with mock.patch("bridge.opa.shutil.which", return_value=None):
+                    code, text = self.run_cli(["scan", APP, "--demo", "--policy-engine", "opa",
+                                               "--out", out])
+            else:
+                code, text = self.run_cli(["scan", APP, "--demo", "--policy-engine", "opa",
+                                           "--out", out])
+            with open(os.path.join(out, "report.md")) as handle:
+                markdown = handle.read()
+        return code, text, markdown, decision
+
+    def test_enforcing_mode_lets_opa_decide_even_against_python(self):
+        _, _, _, decision = demo_state()[0], None, None, demo_state()[2]
+        code, text, markdown, _ = self.run_enforcing(opa_answer(False, 0, 0))
+        self.assertEqual(code, 0)  # Python says blocked, OPA says pass: OPA decides
+        self.assertIn("VERDICT: PASSED", text)
+        self.assertIn("OPA decides", markdown)
+        self.assertIn("DISAGREE", markdown)
+
+    def test_enforcing_mode_blocks_when_opa_blocks(self):
+        findings, policy, decision = demo_state()
+        code, text, _, _ = self.run_enforcing(
+            opa_answer(True, len(decision.blocking), len(decision.waived)))
+        self.assertEqual(code, 1)
+        self.assertIn("VERDICT: BLOCKED", text)
+
+    def test_enforcing_mode_fails_closed_when_opa_is_missing(self):
+        code, text, markdown, _ = self.run_enforcing(missing=True)
+        self.assertEqual(code, 2)
+        self.assertNotIn("VERDICT: PASSED", text)
+        self.assertIn("FAILED CLOSED", markdown)
+
+    def test_enforcing_mode_fails_closed_when_the_policy_gives_no_answer(self):
+        code, text, _, _ = self.run_enforcing("{}")
+        self.assertEqual(code, 2)
+        self.assertNotIn("VERDICT: PASSED", text)
+
+
+class FixedAppTests(unittest.TestCase):
+    def test_the_fixed_app_has_the_same_files_as_the_broken_one(self):
+        def files(root):
+            return sorted(os.path.relpath(os.path.join(d, f), root)
+                          for d, _, fs in os.walk(root) for f in fs if not f.endswith(".pyc"))
+        self.assertEqual(files(os.path.join(ROOT, "sample-app")),
+                         files(os.path.join(ROOT, "sample-app-fixed")))
+
+    def test_the_fixed_app_no_longer_contains_the_planted_flaws(self):
+        def read(*parts):
+            with open(os.path.join(ROOT, "sample-app-fixed", *parts)) as handle:
+                return handle.read()
+        self.assertNotIn("ghp_", read("config.py"))
+        self.assertNotIn("shell=True", read("app.py"))
+        self.assertNotIn("debug=True", read("app.py"))
+        self.assertIn("USER ", read("Dockerfile"))
+        self.assertNotIn("privileged: true", read("k8s", "deployment.yaml"))
+        self.assertNotIn("0.0.0.0/0", read("infra", "main.tf"))
+        self.assertNotIn("0.12.2", read("requirements.txt"))
+
+
 class RegoFileGuardTests(unittest.TestCase):
     """We cannot run Rego here, but we can stop the two copies of the rules drifting apart."""
 
@@ -554,9 +618,9 @@ class WorkflowTests(unittest.TestCase):
         for tool in ("gitleaks version", "trivy --version", "semgrep --version"):
             self.assertIn(tool, shown)
 
-    def test_the_scan_runs_opa_in_shadow_mode_and_the_python_policy_still_decides(self):
+    def test_the_scan_uses_the_configured_policy_engine_and_installs_opa(self):
         steps = {s.get("name", ""): s for s in self.wf["jobs"]["scan"]["steps"]}
-        self.assertIn("--policy-engine shadow", steps["Run SecureBridge"]["run"])
+        self.assertIn('--policy-engine "$POLICY_ENGINE"', steps["Run SecureBridge"]["run"])
         self.assertIn("opa version", steps["Show scanner versions"]["run"])
         self.assertIn("install-opa.sh", steps["Install OPA"]["run"])
 

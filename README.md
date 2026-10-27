@@ -66,7 +66,7 @@ bridge/       models, adapters, runner, layers, policy, report, cli
 policy.json   the blocking settings and waivers
 policy/       the same rules as Rego (OPA) + Rego unit tests
 scripts/      install-opa.sh (used by the workflow)
-tests/        69 tests
+tests/        75 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```
@@ -77,8 +77,11 @@ LESSONS.md    the guided tour
 brew install opa            # or: bash scripts/install-opa.sh
 opa check policy/           # syntax check
 opa test policy/ -v         # Rego unit tests
-python -m bridge scan sample-app --policy-engine shadow
+python -m bridge scan sample-app --policy-engine shadow   # compare only
+python -m bridge scan sample-app --policy-engine opa      # OPA decides, fails closed
 ```
+
+`sample-app-fixed/` is the repaired copy of `sample-app/` (scan it to see PASSED).
 
 Shadow mode: Python still decides the exit code; OPA's answer is shown next to it
 as agree / disagree / skipped / error. See Lesson 19 in LESSONS.md.

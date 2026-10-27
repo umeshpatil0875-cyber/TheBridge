@@ -42,10 +42,11 @@ def main(argv=None) -> int:
     parser.add_argument("--demo", action="store_true",
                         help="use saved sample scanner outputs instead of running the tools")
     parser.add_argument("--policy", default=os.path.join(HERE, "policy.json"))
-    parser.add_argument("--policy-engine", choices=["python", "shadow"], default="python",
+    parser.add_argument("--policy-engine", choices=["python", "shadow", "opa"], default="python",
                         help="python: the Python rules decide (default). shadow: the Python "
                              "rules still decide, and OPA evaluates the same findings so the "
-                             "report can show whether the two agree")
+                             "report can show whether the two agree. opa: OPA decides; if OPA cannot "
+                             "answer, the scan fails closed with exit code 2")
     parser.add_argument("--out", default="out", help="folder for the reports")
     args = parser.parse_args(argv)
 
@@ -83,8 +84,17 @@ def main(argv=None) -> int:
 
     # 3b. Optional: let OPA answer the same question, without letting it change the result.
     policy_check = None
-    if args.policy_engine == "shadow":
+    if args.policy_engine in ("shadow", "opa"):
         policy_check = shadow_check(findings, policy, decision)
+    opa_failed = False
+    if args.policy_engine == "opa":
+        policy_check["mode"] = "enforce"
+        if policy_check["opa"] is None:
+            # LESSON 20 (fail closed): when the judge cannot answer, the answer is not
+            # "pass". A gate that opens whenever it breaks is not a gate.
+            opa_failed = True
+        else:
+            decision.blocked = bool(policy_check["opa"]["blocked"])
 
     # 4. Write the three reports.
     os.makedirs(args.out, exist_ok=True)
@@ -114,6 +124,11 @@ def main(argv=None) -> int:
         extra = f" ({policy_check['detail']})" if policy_check["detail"] else ""
         print(f"\nOPA shadow check: {policy_check['status']}{extra}")
     print(f"\nreports written to {args.out}/")
+    if opa_failed:
+        print("error: OPA is the decider but gave no answer, so the scan fails closed.",
+              file=sys.stderr)
+        print("VERDICT: UNKNOWN (policy engine unavailable)")
+        return 2
     print("VERDICT:", "BLOCKED" if decision.blocked else "PASSED")
     return 1 if decision.blocked else 0
 
