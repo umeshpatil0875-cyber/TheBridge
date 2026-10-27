@@ -1,0 +1,5 @@
+# FIX 5: current versions. Check that the pins are still current when you run this.
+flask==3.1.3
+requests==2.33.0
+pyyaml==6.0.3
+jinja2==3.1.6

@@ -1,0 +1,184 @@
+"""Turns findings and the policy decision into things people and tools can read.
+
+Three outputs, three audiences:
+  report.md    for humans (read it, paste it into a pull request)
+  report.json  for programs (a dashboard or API in a later phase reads this)
+  report.sarif for GitHub and other security viewers
+
+LESSON 9 (SARIF): SARIF is an open standard format for scanner results. If we write
+it once, GitHub's "Security" tab can show our findings with no extra work, because
+GitHub already understands SARIF. This is why the bridge converts everything into
+ONE format first, then exports ONE standard format at the end.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+from collections import Counter
+
+from .layers import LAYER_NAMES, first_defective, summarize
+from .models import SEVERITIES, Finding, severity_rank
+from .policy import Decision
+from .runner import ToolRun
+
+
+def _sorted(findings: list[Finding]) -> list[Finding]:
+    return sorted(findings, key=lambda f: (-severity_rank(f.severity), f.file, f.line or 0))
+
+
+def _where(finding: Finding) -> str:
+    return f"{finding.file}:{finding.line}" if finding.line else finding.file
+
+
+def _describe(side: dict) -> str:
+    verdict = "BLOCKED" if side["blocked"] else "PASSED"
+    return f"{verdict}, {side['blocking']} blocking, {side['waived']} waived"
+
+
+def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision,
+                dropped: int, policy_check: dict = None) -> str:
+    counts = Counter(f.severity for f in findings)
+    out = ["# SecureBridge report", ""]
+
+    verdict = "BLOCKED" if decision.blocked else "PASSED"
+    out += [f"**Verdict: {verdict}** "
+            f"({len(decision.blocking)} blocking, {len(decision.waived)} waived)", ""]
+
+    out += ["## Scanners", "", "| Scanner | Status | Detail |", "| --- | --- | --- |"]
+    for run in runs:
+        out.append(f"| {run.name} | {run.status} | {run.detail} |")
+    skipped = [r.name for r in runs if r.status in ("skipped", "failed")]
+    if skipped:
+        out += ["", f"**Warning:** {', '.join(skipped)} did not run. "
+                "This report does NOT cover what those scanners check."]
+
+    rows = summarize(runs, findings, decision)
+    out += ["", "## Layers (from code to production)", "",
+            "| # | Layer | Status | Findings | Worst | Checked by |",
+            "| --- | --- | --- | --- | --- | --- |"]
+    for number, row in enumerate(rows, start=1):
+        checked = ", ".join(row["checked_by"]) or f"nobody ({row['gap']})"
+        out.append(f"| {number} | {row['name']} | {row['status']} | {row['findings']} | "
+                   f"{row['worst_severity'] or '-'} | {checked} |")
+    broken = first_defective(rows)
+    if broken:
+        defective = [r["name"] for r in rows if r["status"] == "DEFECTIVE"]
+        out += ["", f"**Defective layers:** {', '.join(defective)}. "
+                f"Start fixing at **{broken['name']}**, the earliest broken layer, "
+                "because problems upstream often carry downstream."]
+    gaps = [r["name"] for r in rows if r["status"] == "not scanned"]
+    if gaps:
+        out += ["", f"**Not scanned:** {', '.join(gaps)}. "
+                "These layers may have problems this report cannot see."]
+
+    if policy_check:
+        enforcing = policy_check.get("mode") == "enforce"
+        out += ["", f"## Policy check (OPA {'decides' if enforcing else 'in shadow mode'})", "",
+                f"- Python policy ({'watching' if enforcing else 'this decides'}): "
+                f"{_describe(policy_check['python'])}"]
+        if policy_check["opa"]:
+            out.append(f"- OPA/Rego policy ({'this decides' if enforcing else 'watching'}): "
+                       f"{_describe(policy_check['opa'])}")
+        status = policy_check["status"]
+        if status == "agree":
+            out += ["", "**Result: the two engines agree.**"]
+        elif status == "disagree":
+            out += ["", f"**Result: the engines DISAGREE** ({policy_check['detail']}). "
+                    + ("The OPA result is the one that counts. Find out which engine is wrong."
+                     if enforcing else
+                     "The Python result above is the one that counts. Find out which "
+                     "engine is wrong before letting OPA decide.")]
+        else:
+            out += ["", f"**OPA gave no decision** ({policy_check['status']}: "
+                    f"{policy_check['detail']}). "
+                    + ("The scan FAILED CLOSED: no verdict was given." if enforcing
+                       else "The Python result above is unaffected.")]
+
+    out += ["", "## Findings by severity", "", "| Severity | Count |", "| --- | --- |"]
+    for sev in reversed(SEVERITIES):
+        if counts.get(sev):
+            out.append(f"| {sev} | {counts[sev]} |")
+    if not findings:
+        out.append("| none | 0 |")
+    if dropped:
+        out += ["", f"{dropped} duplicate finding(s) from different tools were merged."]
+
+    blocking_ids = {id(f) for f in decision.blocking}
+    out += ["", "## All findings", "",
+            "| Severity | Layer | Kind | Where | What | Fix | Blocks? |",
+            "| --- | --- | --- | --- | --- | --- | --- |"]
+    for f in _sorted(findings):
+        blocks = "yes" if id(f) in blocking_ids else "no"
+        what = f"{f.title} ({f.rule_id})".replace("|", "/")
+        out.append(f"| {f.severity} | {LAYER_NAMES.get(f.layer, f.layer)} | {f.category} | "
+                   f"{_where(f)} | {what} | "
+                   f"{f.fix.replace('|', '/')} | {blocks} |")
+
+    if decision.waived:
+        out += ["", "## Waived (known and accepted)", ""]
+        for f, w in decision.waived:
+            out.append(f"- {f.rule_id} in {_where(f)}: {w['reason']} (expires {w['expires']})")
+    if decision.expired_waivers:
+        out += ["", "## Expired waivers (no longer protect anything)", ""]
+        for w in decision.expired_waivers:
+            out.append(f"- {w['rule_id']}: expired {w['expires']}")
+    return "\n".join(out) + "\n"
+
+
+def to_json(runs: list[ToolRun], findings: list[Finding], decision: Decision,
+            dropped: int, policy_check: dict = None) -> str:
+    rows = summarize(runs, findings, decision)
+    broken = first_defective(rows)
+    return json.dumps(
+        {
+            "verdict": "blocked" if decision.blocked else "passed",
+            "blocking_count": len(decision.blocking),
+            "first_defective_layer": broken["layer"] if broken else None,
+            "policy_check": policy_check,
+            "layers": rows,
+            "duplicates_merged": dropped,
+            "scanners": [{"name": r.name, "status": r.status, "detail": r.detail} for r in runs],
+            "findings": [f.to_dict() for f in _sorted(findings)],
+        },
+        indent=2,
+    )
+
+
+_SARIF_LEVEL = {"critical": "error", "high": "error", "medium": "warning",
+                "low": "note", "info": "note"}
+
+
+def to_sarif(findings: list[Finding], prefix: str = "") -> str:
+    """`prefix` is the scanned folder's path from the repository root (for example
+    "sample-app"). GitHub needs paths relative to the repo root to link a finding to
+    the right file, but our findings are relative to the scanned folder."""
+    rules: dict[str, dict] = {}
+    results = []
+    for f in _sorted(findings):
+        rule_id = f"{f.tool}/{f.rule_id}"
+        rules.setdefault(rule_id, {"id": rule_id, "shortDescription": {"text": f.title}})
+        uri = f"{prefix}/{f.file}" if prefix else f.file
+        location = {"artifactLocation": {"uri": uri}}
+        if f.line:
+            location["region"] = {"startLine": f.line}
+        fingerprint = hashlib.sha256(
+            "|".join(str(part) for part in f.dedupe_key + (f.tool, f.rule_id)).encode()
+        ).hexdigest()
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": _SARIF_LEVEL[f.severity],
+                "message": {"text": f"{f.title}. {f.description} Fix: {f.fix}".strip()},
+                "locations": [{"physicalLocation": location}],
+                "partialFingerprints": {"securebridge/v1": fingerprint},
+                "properties": {"severity": f.severity, "category": f.category,
+                               "tool": f.tool, "layer": f.layer},
+            }
+        )
+    doc = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{"tool": {"driver": {"name": "SecureBridge", "rules": list(rules.values())}},
+                  "results": results}],
+    }
+    return json.dumps(doc, indent=2)

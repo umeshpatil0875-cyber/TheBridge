@@ -1,0 +1,23 @@
+# SPECIMEN: an intentionally unsafe pipeline file, for the scanners to find.
+# It lives inside sample-app/ on purpose. GitHub only runs workflows from the
+# repository root's .github/workflows folder, so this file never executes.
+# Never copy it into a real project.
+name: build
+
+# FLAW 9: this trigger runs with the target repository's secrets and permissions
+# even for pull requests from strangers.
+on: pull_request_target
+
+# FLAW 10: gives the job's token every permission there is.
+permissions: write-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main # FLAW 11: a moving branch instead of a fixed version
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Greet
+        # FLAW 12: the pull request title is attacker-controlled text pasted into a shell command.
+        run: echo "Building ${{ github.event.pull_request.title }}"

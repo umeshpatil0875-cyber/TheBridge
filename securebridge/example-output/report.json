@@ -1,0 +1,350 @@
+{
+  "verdict": "blocked",
+  "blocking_count": 15,
+  "first_defective_layer": "source",
+  "policy_check": null,
+  "layers": [
+    {
+      "layer": "source",
+      "name": "Source code",
+      "status": "DEFECTIVE",
+      "findings": 4,
+      "blocking": 3,
+      "worst_severity": "high",
+      "checked_by": [
+        "gitleaks",
+        "semgrep"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "dependencies",
+      "name": "Dependencies",
+      "status": "DEFECTIVE",
+      "findings": 6,
+      "blocking": 5,
+      "worst_severity": "critical",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "pipeline",
+      "name": "CI/CD pipeline",
+      "status": "DEFECTIVE",
+      "findings": 5,
+      "blocking": 4,
+      "worst_severity": "high",
+      "checked_by": [
+        "zizmor"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "container",
+      "name": "Container image",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "infrastructure",
+      "name": "Infrastructure as code",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "critical",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "kubernetes",
+      "name": "Kubernetes",
+      "status": "DEFECTIVE",
+      "findings": 1,
+      "blocking": 1,
+      "worst_severity": "high",
+      "checked_by": [
+        "trivy"
+      ],
+      "gap": ""
+    },
+    {
+      "layer": "runtime",
+      "name": "Running system",
+      "status": "not scanned",
+      "findings": 0,
+      "blocking": 0,
+      "worst_severity": null,
+      "checked_by": [],
+      "gap": "no scanner for this layer yet"
+    }
+  ],
+  "duplicates_merged": 0,
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "status": "demo",
+      "detail": "1 finding(s) from sample output"
+    },
+    {
+      "name": "semgrep",
+      "status": "demo",
+      "detail": "3 finding(s) from sample output"
+    },
+    {
+      "name": "trivy",
+      "status": "demo",
+      "detail": "9 finding(s) from sample output"
+    },
+    {
+      "name": "zizmor",
+      "status": "demo",
+      "detail": "5 finding(s) from sample output"
+    }
+  ],
+  "findings": [
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "AVD-AWS-0107",
+      "severity": "critical",
+      "title": "Security group allows unrestricted ingress from the internet",
+      "file": "infra/main.tf",
+      "line": 5,
+      "package": "",
+      "description": "An ingress rule allows traffic from 0.0.0.0/0. Restrict the allowed addresses to the ones that need access.",
+      "fix": "Set a more restrictive cidr range.",
+      "layer": "infrastructure"
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2018-18074",
+      "severity": "critical",
+      "title": "requests: Authorization header sent to a different host on redirect",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "requests",
+      "description": "requests 2.19.1 is affected. https://avd.aquasec.com/nvd/cve-2018-18074",
+      "fix": "Upgrade requests to 2.20.0 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2020-14343",
+      "severity": "critical",
+      "title": "PyYAML: arbitrary code execution when loading untrusted YAML",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "pyyaml",
+      "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-14343",
+      "fix": "Upgrade pyyaml to 5.4 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2020-1747",
+      "severity": "critical",
+      "title": "PyYAML: arbitrary code execution via FullLoader",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "pyyaml",
+      "description": "pyyaml 5.3 is affected. https://avd.aquasec.com/nvd/cve-2020-1747",
+      "fix": "Upgrade pyyaml to 5.3.1 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2019-8341",
+      "severity": "critical",
+      "title": "Jinja2: code injection in the from_string function",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "jinja2",
+      "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-8341",
+      "fix": "Upgrade jinja2 to 2.10.1 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "dangerous-triggers",
+      "severity": "high",
+      "title": "use of fundamentally insecure workflow trigger",
+      "file": ".github/workflows/build.yml",
+      "line": 9,
+      "package": "",
+      "description": "pull_request_target is almost always used insecurely",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#dangerous-triggers",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "excessive-permissions",
+      "severity": "high",
+      "title": "overly broad permissions",
+      "file": ".github/workflows/build.yml",
+      "line": 12,
+      "package": "",
+      "description": "write-all is overly broad",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#excessive-permissions",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "unpinned-uses",
+      "severity": "high",
+      "title": "unpinned action reference",
+      "file": ".github/workflows/build.yml",
+      "line": 18,
+      "package": "",
+      "description": "action is not pinned to a tag, branch, or hash ref",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#unpinned-uses",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "template-injection",
+      "severity": "high",
+      "title": "code injection via template expansion",
+      "file": ".github/workflows/build.yml",
+      "line": 23,
+      "package": "",
+      "description": "may expand into attacker-controllable code",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#template-injection",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "DS002",
+      "severity": "high",
+      "title": "Image user should not be 'root'",
+      "file": "Dockerfile",
+      "line": 1,
+      "package": "",
+      "description": "Running containers as root gives an attacker full control if they break into the app. Add a USER line with a non-root user.",
+      "fix": "Add 'USER <non root user name>' line to the Dockerfile",
+      "layer": "container"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+      "severity": "high",
+      "title": "tainted sql string",
+      "file": "app.py",
+      "line": 20,
+      "package": "",
+      "description": "Weakness type: CWE-89: SQL Injection.",
+      "fix": "User input is used to build an SQL string. Use parameterized queries instead.",
+      "layer": "source"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+      "severity": "high",
+      "title": "subprocess shell true",
+      "file": "app.py",
+      "line": 28,
+      "package": "",
+      "description": "Weakness type: CWE-78: OS Command Injection.",
+      "fix": "Found 'subprocess' call with shell=True. This allows command injection. Pass a list of arguments and drop shell=True.",
+      "layer": "source"
+    },
+    {
+      "tool": "gitleaks",
+      "category": "secret",
+      "rule_id": "github-pat",
+      "severity": "high",
+      "title": "GitHub Personal Access Token",
+      "file": "config.py",
+      "line": 5,
+      "package": "",
+      "description": "A credential-like value is stored in source code. (The value itself is intentionally left out of this report.)",
+      "fix": "Revoke and rotate the secret, then load it from an environment variable or a secrets manager instead.",
+      "layer": "source"
+    },
+    {
+      "tool": "trivy",
+      "category": "config",
+      "rule_id": "KSV017",
+      "severity": "high",
+      "title": "Privileged container",
+      "file": "k8s/deployment.yaml",
+      "line": 16,
+      "package": "",
+      "description": "Privileged containers share namespaces with the host system and have extra capabilities. An attacker who breaks in can take over the host.",
+      "fix": "Change 'containers[].securityContext.privileged' to 'false'.",
+      "layer": "kubernetes"
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2018-1000656",
+      "severity": "high",
+      "title": "Flask: denial of service via crafted JSON data",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "flask",
+      "description": "flask 0.12.2 is affected. https://avd.aquasec.com/nvd/cve-2018-1000656",
+      "fix": "Upgrade flask to 0.12.3 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "trivy",
+      "category": "dependency",
+      "rule_id": "CVE-2019-10906",
+      "severity": "high",
+      "title": "Jinja2: sandbox escape through str.format_map",
+      "file": "requirements.txt",
+      "line": null,
+      "package": "jinja2",
+      "description": "jinja2 2.10 is affected. https://avd.aquasec.com/nvd/cve-2019-10906",
+      "fix": "Upgrade jinja2 to 2.10.1 or newer.",
+      "layer": "dependencies"
+    },
+    {
+      "tool": "zizmor",
+      "category": "config",
+      "rule_id": "artipacked",
+      "severity": "medium",
+      "title": "credential persistence through GitHub Actions artifacts",
+      "file": ".github/workflows/build.yml",
+      "line": 18,
+      "package": "",
+      "description": "does not set persist-credentials: false",
+      "fix": "Explanation and remedy: https://docs.zizmor.sh/audits/#artipacked",
+      "layer": "pipeline"
+    },
+    {
+      "tool": "semgrep",
+      "category": "code",
+      "rule_id": "python.flask.security.audit.debug-enabled.debug-enabled",
+      "severity": "medium",
+      "title": "debug enabled",
+      "file": "app.py",
+      "line": 33,
+      "package": "",
+      "description": "Weakness type: CWE-489: Active Debug Code.",
+      "fix": "Running Flask with debug=True can expose an interactive console. Turn it off in production.",
+      "layer": "source"
+    }
+  ]
+}

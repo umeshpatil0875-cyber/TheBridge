@@ -1,0 +1,131 @@
+{
+  "SchemaVersion": 2,
+  "ArtifactName": ".",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "requirements.txt",
+      "Class": "lang-pkgs",
+      "Type": "pip",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2018-1000656",
+          "PkgName": "flask",
+          "InstalledVersion": "0.12.2",
+          "FixedVersion": "0.12.3",
+          "Severity": "HIGH",
+          "Title": "Flask: denial of service via crafted JSON data",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2018-1000656"
+        },
+        {
+          "VulnerabilityID": "CVE-2018-18074",
+          "PkgName": "requests",
+          "InstalledVersion": "2.19.1",
+          "FixedVersion": "2.20.0",
+          "Severity": "CRITICAL",
+          "Title": "requests: Authorization header sent to a different host on redirect",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2018-18074"
+        },
+        {
+          "VulnerabilityID": "CVE-2020-14343",
+          "PkgName": "pyyaml",
+          "InstalledVersion": "5.3",
+          "FixedVersion": "5.4",
+          "Severity": "CRITICAL",
+          "Title": "PyYAML: arbitrary code execution when loading untrusted YAML",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-14343"
+        },
+        {
+          "VulnerabilityID": "CVE-2020-1747",
+          "PkgName": "pyyaml",
+          "InstalledVersion": "5.3",
+          "FixedVersion": "5.3.1",
+          "Severity": "CRITICAL",
+          "Title": "PyYAML: arbitrary code execution via FullLoader",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-1747"
+        },
+        {
+          "VulnerabilityID": "CVE-2019-10906",
+          "PkgName": "jinja2",
+          "InstalledVersion": "2.10",
+          "FixedVersion": "2.10.1",
+          "Severity": "HIGH",
+          "Title": "Jinja2: sandbox escape through str.format_map",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2019-10906"
+        },
+        {
+          "VulnerabilityID": "CVE-2019-8341",
+          "PkgName": "jinja2",
+          "InstalledVersion": "2.10",
+          "FixedVersion": "2.10.1",
+          "Severity": "CRITICAL",
+          "Title": "Jinja2: code injection in the from_string function",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2019-8341"
+        }
+      ]
+    },
+    {
+      "Target": "Dockerfile",
+      "Class": "config",
+      "Type": "dockerfile",
+      "Misconfigurations": [
+        {
+          "ID": "DS002",
+          "AVDID": "AVD-DS-0002",
+          "Title": "Image user should not be 'root'",
+          "Description": "Running containers as root gives an attacker full control if they break into the app. Add a USER line with a non-root user.",
+          "Message": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
+          "Resolution": "Add 'USER <non root user name>' line to the Dockerfile",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds002",
+          "CauseMetadata": {
+            "StartLine": 1,
+            "EndLine": 6
+          }
+        }
+      ]
+    },
+    {
+      "Target": "k8s/deployment.yaml",
+      "Class": "config",
+      "Type": "kubernetes",
+      "Misconfigurations": [
+        {
+          "ID": "KSV017",
+          "AVDID": "AVD-KSV-0017",
+          "Title": "Privileged container",
+          "Description": "Privileged containers share namespaces with the host system and have extra capabilities. An attacker who breaks in can take over the host.",
+          "Message": "Container 'app' of Deployment 'demo-app' should set 'securityContext.privileged' to false",
+          "Resolution": "Change 'containers[].securityContext.privileged' to 'false'.",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ksv017",
+          "CauseMetadata": {
+            "StartLine": 16,
+            "EndLine": 20
+          }
+        }
+      ]
+    },
+    {
+      "Target": "infra/main.tf",
+      "Class": "config",
+      "Type": "terraform",
+      "Misconfigurations": [
+        {
+          "ID": "AVD-AWS-0107",
+          "AVDID": "AVD-AWS-0107",
+          "Title": "Security group allows unrestricted ingress from the internet",
+          "Description": "An ingress rule allows traffic from 0.0.0.0/0. Restrict the allowed addresses to the ones that need access.",
+          "Message": "Security group rule allows ingress from public internet.",
+          "Resolution": "Set a more restrictive cidr range.",
+          "Severity": "CRITICAL",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/avd-aws-0107",
+          "CauseMetadata": {
+            "StartLine": 5,
+            "EndLine": 10
+          }
+        }
+      ]
+    }
+  ]
+}

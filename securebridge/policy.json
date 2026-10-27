@@ -1,0 +1,17 @@
+{
+  "block_at": {
+    "secret": "low",
+    "code": "high",
+    "dependency": "high",
+    "config": "high",
+    "default": "high"
+  },
+  "waivers": [
+    {
+      "rule_id": "CVE-2018-1000656",
+      "file": "requirements.txt",
+      "reason": "Example waiver: the demo app does not accept JSON from users. Revisit after upgrading Flask.",
+      "expires": "2026-12-31"
+    }
+  ]
+}

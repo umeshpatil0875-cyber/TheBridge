@@ -1,0 +1,20 @@
+# The FIXED specimen workflow (inert: it is nested, GitHub never runs it).
+name: build
+on:
+  pull_request:            # FIX: not pull_request_target, so no secrets for outside code
+
+permissions:
+  contents: read           # FIX: least privilege instead of write-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # FIX: pinned to a full commit SHA (v4.2.2) and no stored credentials.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Greet
+        env:
+          TITLE: ${{ github.event.pull_request.title }}   # FIX: via env, never pasted into the script
+        run: echo "PR title is $TITLE"
