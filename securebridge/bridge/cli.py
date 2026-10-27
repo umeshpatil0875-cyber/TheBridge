@@ -118,6 +118,8 @@ def main(argv=None) -> int:
         from .upload import upload_report
         ok, message = upload_report(args.upload_url, args.token, outputs["report.json"])
         print(f"upload: {message}", file=sys.stdout if ok else sys.stderr)
+    else:
+        print("upload: skipped (no SECUREBRIDGE_URL / --upload-url set)")
 
     # 5. Tell the human, then tell the pipeline (via the exit code).
     for r in runs:
@@ -134,7 +136,8 @@ def main(argv=None) -> int:
         print(f"Start fixing at: {broken['name']}")
     if policy_check:
         extra = f" ({policy_check['detail']})" if policy_check["detail"] else ""
-        print(f"\nOPA shadow check: {policy_check['status']}{extra}")
+        label = "OPA enforcing" if policy_check.get("mode") == "enforce" else "OPA shadow check"
+        print(f"\n{label}: {policy_check['status']}{extra}")
     print(f"\nreports written to {args.out}/")
     if opa_failed:
         print("error: OPA is the decider but gave no answer, so the scan fails closed.",
