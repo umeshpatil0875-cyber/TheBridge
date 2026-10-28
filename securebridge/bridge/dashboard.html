@@ -22,6 +22,7 @@
     --series-2: #eb6834;
     --series-3: #1baf7a;
     --series-4: #eda100;
+    --series-5: #e87ba4;
     --sev-info: #86b6ef;
     --sev-low: #5598e7;
     --sev-medium: #2a78d6;
@@ -38,7 +39,7 @@
       color-scheme: dark;
       --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #a09e97;
       --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
-      --accent: #3987e5; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+      --accent: #3987e5; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181;
       --sev-info: #184f95; --sev-low: #256abf; --sev-medium: #3987e5; --sev-high: #6da7ec; --sev-critical: #9ec5f4;
       --good-text: #0ca30c; --critical-text: #ec6a6a; --wash: rgba(255, 255, 255, 0.06);
     }
@@ -47,7 +48,7 @@
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #a09e97;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
-    --accent: #3987e5; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --accent: #3987e5; --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --series-5: #d55181;
     --sev-info: #184f95; --sev-low: #256abf; --sev-medium: #3987e5; --sev-high: #6da7ec; --sev-critical: #9ec5f4;
     --good-text: #0ca30c; --critical-text: #ec6a6a; --wash: rgba(255, 255, 255, 0.06);
   }
@@ -256,8 +257,8 @@ const LAYERS = [["source", "Source code"], ["dependencies", "Dependencies"], ["p
   ["container", "Container image"], ["infrastructure", "Infrastructure as code"],
   ["kubernetes", "Kubernetes"], ["runtime", "Running system"]];
 const LAYER_NAME = Object.fromEntries(LAYERS);
-const TOOLS = ["gitleaks", "semgrep", "trivy", "zizmor"];
-const TOOL_VAR = { gitleaks: "--series-1", semgrep: "--series-2", trivy: "--series-3", zizmor: "--series-4" };
+const TOOLS = ["gitleaks", "semgrep", "trivy", "zizmor", "zap"];
+const TOOL_VAR = { gitleaks: "--series-1", semgrep: "--series-2", trivy: "--series-3", zizmor: "--series-4", zap: "--series-5" };
 const NS = "http://www.w3.org/2000/svg";
 
 const $ = (id) => document.getElementById(id);
@@ -525,7 +526,7 @@ function hbars(container, items, labelWidth, note) {
 function layerChart(scan) {
   const items = LAYERS.map(([key, name]) => ({
     label: name, value: scan.layers[key] || 0, color: css("--series-1"),
-    dim: key === "runtime", empty: key === "runtime" ? "no scanner yet" : "0" }));
+    dim: key === "runtime", empty: key === "runtime" ? "0 or not scanned" : "0" }));
   hbars($("c-layers"), items, 138, `Scan #${scan.id}, findings by layer`);
 }
 function toolChart(scan) {

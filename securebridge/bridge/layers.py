@@ -48,7 +48,7 @@ COVERAGE = {
     "container": ["trivy"],
     "infrastructure": ["trivy"],
     "kubernetes": ["trivy"],
-    "runtime": [],  # needs tools that test a live system, not included yet
+    "runtime": ["zap"],  # OWASP ZAP tests the running app; only runs with --target-url
 }
 
 
@@ -66,6 +66,8 @@ def classify(finding: Finding, root: str = ".") -> str:
     """Decide which layer a finding belongs to. Rules are simple and visible on purpose."""
     if finding.category == "dependency":
         return "dependencies"
+    if finding.category == "runtime":
+        return "runtime"  # found by testing the live application from outside
     if finding.category == "secret":
         return "source"  # a leaked credential is a source-code problem wherever it sits
 

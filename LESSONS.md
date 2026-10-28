@@ -583,6 +583,250 @@ Why switch only now? Shadow mode showed OPA and Python agreed on your real run. 
 3. When the checker itself fails, the safe default is to stop, not to approve. Exit 2 means "could not decide", which is different from "found problems" (1) and "all clear" (0).
 4. OPA wins. You treat the disagreement as a bug report: work out which engine implements the rule wrongly and fix it.
 
+## Lesson 21: phase 3, giving SecureBridge a memory (database, API, multi-tenancy)
+
+Until now every run produced a report and forgot it. A product needs **history**: "is it getting better?", "what is new since last time?". That means three new pieces, all in the standard library, so nothing to install.
+
+### The pieces
+
+- **Database** (`bridge/store.py`, SQLite). Four ideas:
+  - *Tables*: `projects`, `scans` (one row per run) and `findings` (one row per problem in a scan). A **foreign key** such as `scan_id` links a finding to its scan, like a page number pointing to a chapter.
+  - *Fingerprint*: each finding gets a short id built from the same key as dedupe (Lesson 4/15). The same problem found again next week has the same fingerprint, so comparing two scans' fingerprints tells you **new** and **fixed**.
+  - *Index*: a lookup shortcut (`idx_scans_project`), like a book's index; without it every query would read the whole table.
+  - *Parameterized queries*: every SQL statement uses `?` placeholders instead of pasting text in. This is the exact fix for the SQL-injection flaw planted in `sample-app/app.py`. A test even stores `'); DROP TABLE scans;--` as a title to show it stays plain text.
+- **API** (`bridge/server.py`). Other programs cannot open your database file, so they send HTTP requests. `POST /api/v1/scans` uploads a report, and `GET /api/v1/scans`, `/scans/<id>` and `/trend` read it back as JSON. `/v1/` in the path lets you change the API later without breaking old clients.
+- **Upload** (`--upload-url` and `--token`, or the environment variables `SECUREBRIDGE_URL` and `SECUREBRIDGE_TOKEN`). The CLI sends the finished report after scanning.
+
+### Multi-tenancy: the SaaS-critical idea
+
+A SaaS serves many customers from one database. Every row carries a `project_id`, and **every** query filters by it. Forgetting one filter is how real products leak one customer's data to another. So: (1) the project comes from the **token**, never from something the caller types; (2) asking for another project's scan returns **404**, the same as for a scan that doesn't exist, so an attacker cannot even learn which ids exist; (3) tests check all of it.
+
+### Tokens: store the lock, not the key
+
+The API token is shown once when you run `create-project`. The database keeps only a **SHA-256 hash** of it. If the database file leaks, the attacker gets hashes, which cannot be turned back into tokens. The same reason websites store password hashes. (Tokens are long and random, so a plain fast hash is acceptable here. For human-chosen passwords you would use a slow one such as bcrypt or argon2.)
+
+### Never trust uploaded data
+
+The server **validates** every report: the verdict must be passed/blocked, every finding needs its fields, and an unknown severity such as `hgih` is rejected with HTTP 422. Why? Everything stored is later trusted by charts, alerts and billing. This is the same lesson as Rego's undefined trap (Lesson 19): bad data must fail loudly at the door. Request size is capped (5 MB, HTTP 413), and wrong or missing tokens get 401.
+
+HTTP status codes in use: 200 OK, 201 Created, 400 you sent nonsense, 401 who are you?, 404 not found, 413 too big, 422 well-formed but not acceptable.
+
+### Design choice: upload never changes the verdict
+
+If the API is down, the scan still passes or blocks as before, because a security gate must not depend on a dashboard. The upload prints a warning and moves on. (Compare Lesson 20: the policy engine fails **closed**; a reporting service fails **open**. Match the failure mode to how critical the part is.)
+
+### Try it yourself
+
+```
+python -m bridge.server create-project my-team     # prints a token once
+python -m bridge.server serve --port 8080          # leave running
+export SECUREBRIDGE_TOKEN=sb_...                   # in another terminal
+python -m bridge scan sample-app --demo --upload-url http://127.0.0.1:8080
+python -m bridge scan sample-app-fixed --demo --upload-url http://127.0.0.1:8080
+curl -H "Authorization: Bearer $SECUREBRIDGE_TOKEN" http://127.0.0.1:8080/api/v1/trend
+```
+
+### Honest limits
+
+This server speaks plain HTTP, has no rate limiting or user accounts, and runs in one process on one file. Before real customers: HTTPS, a managed database (PostgreSQL), a framework such as FastAPI, rate limits, per-user login and token rotation. The design (tenants, tokens, validation, history) carries over unchanged. Also note that `--demo` fixtures return the same findings for either folder, so the example above shows the API working but not a real red-to-green; use real scanners for that.
+
+### Check yourself
+
+1. Why does each finding get a fingerprint?
+2. Why does another project's scan return 404 instead of 403 (forbidden)?
+3. Why store a hash of the token instead of the token?
+4. Why should the upload step never change the exit code?
+5. What does a `?` placeholder in SQL protect against?
+
+**Answers.**
+1. To recognise the same problem across scans, which is what makes "new" and "fixed" possible.
+2. 403 would confirm that the scan exists. 404 reveals nothing about other tenants' data.
+3. A leaked database then contains nothing an attacker can use as a login.
+4. A reporting outage must not open or close the security gate; the verdict comes from the scan and policy only.
+5. SQL injection: the database treats the value as data, never as SQL commands.
+
+## Lesson 22: testing the API from the internet with ngrok
+
+GitHub's machines cannot reach `127.0.0.1` on your laptop. **ngrok** opens a tunnel: it gives you a public `https://....ngrok-free.app` address that forwards to a port on your computer. That is enough to test the CI-to-API upload before paying for hosting.
+
+Setup, once: create a free account at ngrok.com, install ngrok, run `ngrok config add-authtoken <your ngrok token>`.
+
+Each session:
+1. `python -m bridge.server serve --port 8080` (terminal 1)
+2. `ngrok http 8080` (terminal 2). Copy the `https://...` forwarding address.
+3. In GitHub: Settings > Secrets and variables > Actions > New repository secret. Add `SECUREBRIDGE_URL` (the ngrok address, no trailing slash) and `SECUREBRIDGE_TOKEN` (from `create-project`).
+4. Push or re-run the workflow. The log shows `upload: saved as scan #N`.
+
+Things to know:
+- **The free address changes every time you restart ngrok.** Update the secret each time. A stable address is a reason to host properly later.
+- **Secrets, not code.** The token lives in GitHub's secret store and reaches only the one step that needs it. Never paste it in the workflow file or a chat. If you ever do, make a new project and token.
+- Your laptop must be on, with both terminals running, or the upload prints a warning and the scan still passes or blocks as normal.
+- The tunnel makes your API reachable by anyone who has the address. Our token check and validation protect it, but this is a test setup: close ngrok when you finish, and use a throwaway project.
+- Pull requests from forks never receive secrets, so they skip the upload. That is GitHub protecting your token.
+
+**Check yourself.** (1) Why can't GitHub reach `127.0.0.1:8080`? (2) Why is the token a secret and not an `env:` value in the file? (3) What happens if your laptop is off during a run?
+
+**Answers.** (1) It means "this same machine", and GitHub's runner is a different machine. (2) Workflow files are readable by everyone with repo access and stay in git history forever; secrets are masked in logs and scoped. (3) The upload fails with a warning; the verdict is unchanged.
+
+## Lesson 25: the dashboard, and how to draw numbers honestly
+
+Open `http://127.0.0.1:8080/dashboard` while the API runs (or the same path on your ngrok address), paste a project token, and press Connect. The page is one HTML file, `bridge/dashboard.html`, with no libraries and nothing loaded from other sites. It draws every chart itself as SVG.
+
+### Why each chart exists
+
+| Chart | Question it answers | Why this shape |
+| --- | --- | --- |
+| Four number tiles | "Are we OK right now?" | One current value needs a tile, not a chart. The verdict has an icon **and** a word, so colour never carries meaning alone. |
+| Line: all vs blocking findings | "Is it getting better?" | Change over time is a line. Two series on **one** axis, never two scales. |
+| Stacked columns: severity per scan | "What kind of problems?" | Part-to-whole per scan. Severity is ordered, so it uses **one hue from light to dark**, not a rainbow. |
+| Bars above/below zero: new and fixed | "What changed since last time?" | Two opposite directions share a zero line. This is the chart that rewards the fingerprints from Lesson 21. |
+| Horizontal bars by layer | "Where is the problem?" | The layer model (Lesson 13) made visible; every layer shows, even at zero, and the Running system says "no scanner yet" instead of a misleading 0. |
+| Horizontal bars by scanner | "Which tool found what?" | Four identities, so four distinct colours, labelled directly. |
+| Findings table with filters | "Show me the actual problems." | A chart tells you something is wrong; the table says what. |
+| Scan history table | Everything again, as text | A **table view** for people who can't see colours, use a screen reader, or want exact numbers. |
+
+### Honest charting rules used here
+
+- **Start bars at zero.** A bar that starts at 90 makes 95 look like double.
+- **One y-axis per chart.** Two scales on one chart let you make any two lines "correlate".
+- **Colour follows meaning, not decoration.** Series colours were checked with a small script for colour-blind safety (the same colour pairs must stay apart for people with red-green colour blindness). Dark mode uses its own checked set, not an inverted copy.
+- **Never rely on colour alone**: direct labels, a legend, icons plus words, and the table.
+- **Hover shows the exact value**, and arrow keys work on the line chart for people not using a mouse.
+
+### Security of a page that shows data
+
+- **Untrusted text.** Finding titles come from scanners and uploads. If the page pasted them in as HTML, a malicious title like `<img onerror=...>` would run code in your browser (this is **XSS**, cross-site scripting). The page only ever sets `textContent`, which treats everything as plain text, and a test fails if `innerHTML` ever appears in the file.
+- **Content-Security-Policy header.** The server tells the browser: only run this page's own script, only connect to this same server, never load anything else, and never appear inside another site's frame (that blocks **clickjacking**).
+- **The page holds no data.** Anyone can load the HTML; without a token the API returns nothing. The token is kept in `sessionStorage`, which disappears when the tab closes, and Disconnect clears it. Never keep long-lived secrets in `localStorage`.
+- The `/api/v1/insights` endpoint does all counting on the server and, like every query, only for your project.
+
+### Check yourself
+
+1. Why does the "new and fixed" chart need at least two scans?
+2. Why show a table next to charts that already show the same numbers?
+3. What is XSS, and what is the one habit in this page that prevents it?
+4. Why is the Running system row not drawn as a bar of 0?
+
+**Answers.**
+1. "New" and "fixed" are differences between a scan and the one before it; one scan has nothing to compare with.
+2. For accessibility and exactness: not everyone can read colours or judge a bar's height, and tables are searchable.
+3. Attacker-controlled text running as code in someone's browser. Always insert data with `textContent`, never by building HTML strings.
+4. 0 would say "scanned and clean". We have no scanner for that layer, so the honest label is "no scanner yet" (Lesson 13's "not scanned" vs "clean").
+
+## Lesson 26: scan your own pipeline (and pin what you depend on)
+
+In Lesson 17 we learned that the pipeline is a target: whoever controls your workflow file controls your secrets and your releases. SecureBridge now checks **its own** workflow. A new job, `workflow-lint`, runs `zizmor` on `.github/workflows/`: the real folder at the root of the repo. The deliberately broken specimen in `sample-app/` is untouched, because GitHub never runs it and it is scanned separately.
+
+Changes made while preparing it:
+
+- **`persist-credentials: false`** on every `actions/checkout`. By default checkout leaves a git password on disk for later steps; if a later step leaks the workspace (for example through an uploaded artifact, which zizmor reports as `artipacked`), that password leaks with it. We never push from these jobs, so we don't keep it. This is **least privilege** again.
+- **Pinned scanner versions** (`gitleaks 8.30.1`, `trivy 0.76.1`, `opa 1.21.4`), copied from the "Versions to pin" block of a real run, so a new release can't change your results overnight. A test fails if one goes back to "latest".
+
+**What I could not verify.** I cannot run zizmor here, so I don't know what it will say about the workflow. Expect it to be either green or to name specific lines. Two things it may mention: actions referenced by a version tag (`@v4`) instead of a full commit SHA, and `github/codeql-action`. A **commit SHA** can't be silently moved by the action's owner, a tag can (this is how the tj-actions attack in Lesson 17 worked). Pinning to SHAs is better but needs the exact hashes, and a wrong one breaks the pipeline, so we let the real zizmor output decide. Paste me the job's result and we will fix exactly what it says. Updating pinned SHAs by hand is tedious, which is why teams use Renovate or Dependabot to send those updates as pull requests.
+
+### What zizmor actually said (first real run)
+
+It reported 9 findings, all `unpinned-uses` ("action is not pinned to a hash"), with exit code 14. Our own pipeline, built by us, had the very flaw we flagged in the specimen! Everything else (permissions, injection, credentials) passed. The fix was to replace each tag with the **full 40-character commit hash**, keeping the human-readable version in a comment:
+
+```
+uses: actions/checkout@11d5960a... # v4.4.0
+```
+
+I looked the hashes up from the public repositories rather than guessing (a wrong hash breaks the pipeline). A test now fails if any action in the workflow is not pinned to a 40-hex hash. The price is that upgrades are manual, so `.github/dependabot.yml` asks Dependabot to open a weekly pull request when an action has a newer version, with a one-week `cooldown`: a brand-new release waits seven days, giving the community time to notice a hijacked one.
+
+Note how this answers the earlier question "why does a tag need pinning?": the tj-actions attack (Lesson 17) rewrote tags to point at malicious code; a hash can't be rewritten.
+
+### Check yourself
+
+1. Why scan `.github/workflows/` and not `sample-app/` for this job?
+2. What does `persist-credentials: false` take away, and why is that safe here?
+3. Why can a tag like `@v4` be riskier than a commit SHA?
+
+**Answers.**
+1. The repo's own workflow is the one that really runs with your secrets; the sample-app specimen is inert test data.
+2. The git password left in the checkout. Safe because none of our jobs push to the repository.
+3. The owner (or an attacker with their access) can move a tag to new code; a SHA names exactly one version of the code forever.
+
+## Lesson 27: findings are not problems (grouping)
+
+A real run said "62 findings, 24 blocking". That sounds like weeks of work. Look closer: three different Semgrep rules fire on `app.py:28`, one line, and five CVEs in `flask` all say "upgrade flask". Fixing that one line, or that one library, clears several findings at once. The number a team really cares about is **how many places do I have to touch?**
+
+`bridge/grouping.py` answers it with two deliberately simple rules:
+
+- findings about a **library** group by the package (you fix them by upgrading it);
+- everything else groups by **file and line** (several rules on one line are usually one edit).
+
+You see it in three places: a "Things to fix" table in `report.md`, a `problems` list in `report.json`, and the dashboard's findings table, which now defaults to "Grouped by place to fix" (switch to "Every finding" for the full list). The CLI prints "62 finding(s) in N place(s) to fix".
+
+### The rule that matters: group for display, never delete
+
+Lesson 15 learned the hard way that merging findings early can hide a real one: a privileged container once vanished because it shared a line with a different rule. So grouping happens **after** the policy decision and only changes how things are shown. Every finding is still stored, counted, waivable and able to block. A test checks that the group counts always add up to the number of findings, and another that the verdict never changes.
+
+### Honest limits
+
+Two tools can describe the same flaw at different places: Trivy flags `Dockerfile` as a whole, Semgrep flags `Dockerfile:6`. Our rule can't link those. Linking them needs a hand-maintained table of "these rules mean the same thing", which is exactly what commercial ASPM tools maintain. If you ever build one, store it as data (like `policy.json`) and test it.
+
+### Check yourself
+
+1. Why is "number of findings" a poor measure of how much work is left?
+2. Why do we group after the policy decision rather than before?
+3. Name one case this grouping gets wrong.
+
+**Answers.**
+1. One fix can clear many findings, so the finding count overstates the work (and different findings need very different effort).
+2. Grouping early could merge or hide a finding the policy should block; doing it afterwards cannot change the verdict.
+3. The same flaw reported at different places by different tools (a whole-file finding and a line finding) stays as two places.
+
+## Lesson 28: the last layer, testing the running system (DAST, OWASP ZAP)
+
+Until now every scanner **read files**: code, dependencies, Dockerfiles, YAML. That is called **static** testing (SAST and friends). But some problems only exist when the application is **running**: a missing security header, a cookie JavaScript can steal, an error page that leaks the server version. **Dynamic** testing, **DAST**, attacks a live app from the outside, the way a real attacker's browser would. The tool we use is **OWASP ZAP**, the most widely used open-source one.
+
+### What was added
+
+- `runtime-target/app.py`: a tiny web app (standard library only) with two modes. `weak` ships the way many apps do. `hardened` switches on the standard protections. It is the running-system equivalent of `sample-app` / `sample-app-fixed`.
+- A ZAP adapter (`parse_zap`): ZAP's report becomes the same `Finding` shape as everything else (Lesson 1), with category `runtime` and the layer `runtime`. The 7th layer now says **checked** instead of **not scanned** whenever ZAP actually ran.
+- `--target-url`: tells the bridge where the running app lives. Without it ZAP is skipped and the layer honestly stays "not scanned" (Lesson 13).
+- Two workflow steps: start the app on the runner, pull the ZAP Docker image. ZAP runs **inside Docker**, so there is nothing to install, which is why the Docker image is the standard way to use it.
+- A policy line: `runtime` findings block at **medium** (`policy.json`), because at this layer even the "medium" ones are real exposure.
+
+### What the headers do (the findings ZAP reports on the weak app)
+
+| Header or setting | What it stops |
+| --- | --- |
+| `Content-Security-Policy` | Cross-site scripting: tells the browser which scripts and resources are allowed to load |
+| `X-Frame-Options` / `frame-ancestors` | **Clickjacking**: another site embedding yours invisibly and tricking users into clicking |
+| `X-Content-Type-Options: nosniff` | The browser guessing a file's type and running a "picture" as a script |
+| Cookie `HttpOnly` | JavaScript (and so injected attackers' scripts) reading the session cookie |
+| Cookie `Secure` | The cookie travelling over plain HTTP where it can be sniffed |
+| Cookie `SameSite` | Other websites making your browser send your cookie (CSRF) |
+| Hiding the `Server` banner | Handing attackers the exact software version to look up |
+| `Permissions-Policy` | Pages switching on camera, microphone or location without need |
+
+### Honest design points
+
+- **"Not crawled" is not "clean".** If ZAP cannot reach the site, `run_zap` reports **failed**, not "0 findings" (Lesson 16's canary idea again: silence is not proof).
+- **`-I`**: tells ZAP not to return an error just because it found something; the policy decides that, not the tool (Lesson 10).
+- **Baseline scan = passive.** `zap-baseline.py` crawls for about a minute and only **observes** responses; it does not attack. A full active scan sends attack traffic, is slower, and must **only ever be pointed at systems you own and have permission to test**. That is why the CI target is a throwaway app on `127.0.0.1`.
+- **SARIF skip.** Runtime findings point at a URL, not a file in the repo, and GitHub's Security tab links findings to files, so they are left out of the SARIF upload (they still appear in the report, JSON and dashboard).
+- **I could not run Docker or ZAP here.** The adapter follows ZAP's documented JSON layout and is tested against a hand-written sample; the real run in your CI is the real test. Expect the first run to need a small fix, exactly like zizmor's flags did.
+
+### Try it
+
+Run the workflow by hand (Actions, Run workflow). Leave "runtime_mode" empty and pick `sample-app`: the Running system row should turn DEFECTIVE with about 7 findings. Then pick `sample-app-fixed`: the workflow chooses the hardened app automatically, and you should see the runtime layer **clean**. If a stray low or informational finding shows up in hardened mode, it won't block, because only medium and above do.
+
+### Check yourself
+
+1. What can a dynamic scan find that a static scan cannot?
+2. Why does the layer say "failed" when ZAP cannot reach the site?
+3. Why is it important to only scan systems you own?
+4. Why do runtime findings stay out of the SARIF upload?
+
+**Answers.**
+1. Problems that exist only in the live, configured system: headers, cookie flags, server banners, behaviour of deployed settings.
+2. Because "we saw nothing" would be mistaken for "nothing is wrong"; an unreachable target was never tested.
+3. Scanning someone else's system without permission can be illegal, and active scans can break things.
+4. SARIF locations are files in the repository; these findings point to URLs.
+
 ## Running the real scanners
 
 Demo mode reads saved sample outputs from `fixtures/`. Those samples were written by hand

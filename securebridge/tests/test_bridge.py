@@ -644,6 +644,23 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("zizmor", commands)
         self.assertIn(".github/workflows", commands)
 
+    def test_every_action_is_pinned_to_a_full_commit_hash(self):
+        uses = [st["uses"] for job in self.wf["jobs"].values() for st in job["steps"] if "uses" in st]
+        self.assertGreaterEqual(len(uses), 8)
+        for ref in uses:
+            self.assertRegex(ref, r"@[0-9a-f]{40}$", ref)
+
+    def test_the_running_system_layer_is_wired_into_the_scan_job(self):
+        steps = {st.get("name", ""): st for st in self.wf["jobs"]["scan"]["steps"]}
+        self.assertIn("--target-url", steps["Run SecureBridge"]["run"])
+        names = list(steps)
+        self.assertLess(names.index("Start the demo web app"), names.index("Run SecureBridge"))
+        self.assertLess(names.index("Pull the ZAP image"), names.index("Run SecureBridge"))
+        options = self.wf[True]["workflow_dispatch"]["inputs"]["runtime_mode"]["options"]
+        self.assertEqual(options, ["", "weak", "hardened"])
+        self.assertIn("'hardened'", self.wf["env"]["RUNTIME_MODE"])
+        self.assertIn("'weak'", self.wf["env"]["RUNTIME_MODE"])
+
     def test_scanner_versions_are_pinned(self):
         for name in ("GITLEAKS_VERSION", "TRIVY_VERSION", "OPA_VERSION"):
             self.assertRegex(self.wf["env"][name], r"^\d+\.\d+\.\d+$")

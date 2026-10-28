@@ -4,6 +4,7 @@
     "code": "high",
     "dependency": "high",
     "config": "high",
+    "runtime": "medium",
     "default": "high"
   },
   "waivers": [

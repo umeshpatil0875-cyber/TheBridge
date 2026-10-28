@@ -48,6 +48,9 @@ def main(argv=None) -> int:
                              "rules still decide, and OPA evaluates the same findings so the "
                              "report can show whether the two agree. opa: OPA decides; if OPA cannot "
                              "answer, the scan fails closed with exit code 2")
+    parser.add_argument("--target-url", default="",
+                        help="address of a RUNNING copy of the app (for example "
+                             "http://127.0.0.1:8081). Enables the runtime layer (OWASP ZAP)")
     parser.add_argument("--out", default="out", help="folder for the reports")
     parser.add_argument("--upload-url", default=os.environ.get("SECUREBRIDGE_URL", ""),
                         help="base URL of a SecureBridge API (for example http://localhost:8080); "
@@ -63,11 +66,12 @@ def main(argv=None) -> int:
 
     # 1. Run every scanner (or load sample outputs) and collect the findings.
     runs = []
-    for tool in TOOLS:
+    tools = TOOLS + (["zap"] if args.target_url else [])
+    for tool in tools:
         if args.demo:
             runs.append(run_demo(tool, os.path.join(HERE, "fixtures"), root))
         else:
-            runs.append(run_real(tool, root))
+            runs.append(run_real(tool, root, args.target_url))
 
     if not any(r.status in ("ok", "demo") for r in runs):
         print("error: no scanner could run, so there is nothing to report.", file=sys.stderr)

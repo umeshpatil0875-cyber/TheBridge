@@ -624,6 +624,47 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("opa version", steps["Show scanner versions"]["run"])
         self.assertIn("install-opa.sh", steps["Install OPA"]["run"])
 
+    def test_upload_credentials_come_from_secrets_and_only_reach_the_scan_step(self):
+        steps = self.wf["jobs"]["scan"]["steps"]
+        holders = [s["name"] for s in steps if "SECUREBRIDGE_TOKEN" in s.get("env", {})]
+        self.assertEqual(holders, ["Run SecureBridge"])
+        env = next(s for s in steps if s.get("name") == "Run SecureBridge")["env"]
+        self.assertEqual(env["SECUREBRIDGE_TOKEN"], "${{ secrets.SECUREBRIDGE_TOKEN }}")
+        self.assertNotIn("sb_", self.text)
+
+    def test_every_checkout_drops_its_git_credentials(self):
+        checkouts = [st for job in self.wf["jobs"].values() for st in job["steps"]
+                     if str(st.get("uses", "")).startswith("actions/checkout")]
+        self.assertGreaterEqual(len(checkouts), 3)
+        for step in checkouts:
+            self.assertIs(step.get("with", {}).get("persist-credentials"), False)
+
+    def test_the_pipeline_scans_its_own_workflow_files(self):
+        commands = " ".join(st.get("run", "") for st in self.wf["jobs"]["workflow-lint"]["steps"])
+        self.assertIn("zizmor", commands)
+        self.assertIn(".github/workflows", commands)
+
+    def test_every_action_is_pinned_to_a_full_commit_hash(self):
+        uses = [st["uses"] for job in self.wf["jobs"].values() for st in job["steps"] if "uses" in st]
+        self.assertGreaterEqual(len(uses), 8)
+        for ref in uses:
+            self.assertRegex(ref, r"@[0-9a-f]{40}$", ref)
+
+    def test_the_running_system_layer_is_wired_into_the_scan_job(self):
+        steps = {st.get("name", ""): st for st in self.wf["jobs"]["scan"]["steps"]}
+        self.assertIn("--target-url", steps["Run SecureBridge"]["run"])
+        names = list(steps)
+        self.assertLess(names.index("Start the demo web app"), names.index("Run SecureBridge"))
+        self.assertLess(names.index("Pull the ZAP image"), names.index("Run SecureBridge"))
+        options = self.wf[True]["workflow_dispatch"]["inputs"]["runtime_mode"]["options"]
+        self.assertEqual(options, ["", "weak", "hardened"])
+        self.assertIn("'hardened'", self.wf["env"]["RUNTIME_MODE"])
+        self.assertIn("'weak'", self.wf["env"]["RUNTIME_MODE"])
+
+    def test_scanner_versions_are_pinned(self):
+        for name in ("GITLEAKS_VERSION", "TRIVY_VERSION", "OPA_VERSION"):
+            self.assertRegex(self.wf["env"][name], r"^\d+\.\d+\.\d+$")
+
     def test_a_policy_job_checks_and_unit_tests_the_rego_files(self):
         job = self.wf["jobs"]["policy"]
         commands = " ".join(s.get("run", "") for s in job["steps"])

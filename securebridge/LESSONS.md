@@ -724,6 +724,18 @@ Changes made while preparing it:
 
 **What I could not verify.** I cannot run zizmor here, so I don't know what it will say about the workflow. Expect it to be either green or to name specific lines. Two things it may mention: actions referenced by a version tag (`@v4`) instead of a full commit SHA, and `github/codeql-action`. A **commit SHA** can't be silently moved by the action's owner, a tag can (this is how the tj-actions attack in Lesson 17 worked). Pinning to SHAs is better but needs the exact hashes, and a wrong one breaks the pipeline, so we let the real zizmor output decide. Paste me the job's result and we will fix exactly what it says. Updating pinned SHAs by hand is tedious, which is why teams use Renovate or Dependabot to send those updates as pull requests.
 
+### What zizmor actually said (first real run)
+
+It reported 9 findings, all `unpinned-uses` ("action is not pinned to a hash"), with exit code 14. Our own pipeline, built by us, had the very flaw we flagged in the specimen! Everything else (permissions, injection, credentials) passed. The fix was to replace each tag with the **full 40-character commit hash**, keeping the human-readable version in a comment:
+
+```
+uses: actions/checkout@11d5960a... # v4.4.0
+```
+
+I looked the hashes up from the public repositories rather than guessing (a wrong hash breaks the pipeline). A test now fails if any action in the workflow is not pinned to a 40-hex hash. The price is that upgrades are manual, so `.github/dependabot.yml` asks Dependabot to open a weekly pull request when an action has a newer version, with a one-week `cooldown`: a brand-new release waits seven days, giving the community time to notice a hijacked one.
+
+Note how this answers the earlier question "why does a tag need pinning?": the tj-actions attack (Lesson 17) rewrote tags to point at malicious code; a hash can't be rewritten.
+
 ### Check yourself
 
 1. Why scan `.github/workflows/` and not `sample-app/` for this job?
@@ -764,6 +776,56 @@ Two tools can describe the same flaw at different places: Trivy flags `Dockerfil
 1. One fix can clear many findings, so the finding count overstates the work (and different findings need very different effort).
 2. Grouping early could merge or hide a finding the policy should block; doing it afterwards cannot change the verdict.
 3. The same flaw reported at different places by different tools (a whole-file finding and a line finding) stays as two places.
+
+## Lesson 28: the last layer, testing the running system (DAST, OWASP ZAP)
+
+Until now every scanner **read files**: code, dependencies, Dockerfiles, YAML. That is called **static** testing (SAST and friends). But some problems only exist when the application is **running**: a missing security header, a cookie JavaScript can steal, an error page that leaks the server version. **Dynamic** testing, **DAST**, attacks a live app from the outside, the way a real attacker's browser would. The tool we use is **OWASP ZAP**, the most widely used open-source one.
+
+### What was added
+
+- `runtime-target/app.py`: a tiny web app (standard library only) with two modes. `weak` ships the way many apps do. `hardened` switches on the standard protections. It is the running-system equivalent of `sample-app` / `sample-app-fixed`.
+- A ZAP adapter (`parse_zap`): ZAP's report becomes the same `Finding` shape as everything else (Lesson 1), with category `runtime` and the layer `runtime`. The 7th layer now says **checked** instead of **not scanned** whenever ZAP actually ran.
+- `--target-url`: tells the bridge where the running app lives. Without it ZAP is skipped and the layer honestly stays "not scanned" (Lesson 13).
+- Two workflow steps: start the app on the runner, pull the ZAP Docker image. ZAP runs **inside Docker**, so there is nothing to install, which is why the Docker image is the standard way to use it.
+- A policy line: `runtime` findings block at **medium** (`policy.json`), because at this layer even the "medium" ones are real exposure.
+
+### What the headers do (the findings ZAP reports on the weak app)
+
+| Header or setting | What it stops |
+| --- | --- |
+| `Content-Security-Policy` | Cross-site scripting: tells the browser which scripts and resources are allowed to load |
+| `X-Frame-Options` / `frame-ancestors` | **Clickjacking**: another site embedding yours invisibly and tricking users into clicking |
+| `X-Content-Type-Options: nosniff` | The browser guessing a file's type and running a "picture" as a script |
+| Cookie `HttpOnly` | JavaScript (and so injected attackers' scripts) reading the session cookie |
+| Cookie `Secure` | The cookie travelling over plain HTTP where it can be sniffed |
+| Cookie `SameSite` | Other websites making your browser send your cookie (CSRF) |
+| Hiding the `Server` banner | Handing attackers the exact software version to look up |
+| `Permissions-Policy` | Pages switching on camera, microphone or location without need |
+
+### Honest design points
+
+- **"Not crawled" is not "clean".** If ZAP cannot reach the site, `run_zap` reports **failed**, not "0 findings" (Lesson 16's canary idea again: silence is not proof).
+- **`-I`**: tells ZAP not to return an error just because it found something; the policy decides that, not the tool (Lesson 10).
+- **Baseline scan = passive.** `zap-baseline.py` crawls for about a minute and only **observes** responses; it does not attack. A full active scan sends attack traffic, is slower, and must **only ever be pointed at systems you own and have permission to test**. That is why the CI target is a throwaway app on `127.0.0.1`.
+- **SARIF skip.** Runtime findings point at a URL, not a file in the repo, and GitHub's Security tab links findings to files, so they are left out of the SARIF upload (they still appear in the report, JSON and dashboard).
+- **I could not run Docker or ZAP here.** The adapter follows ZAP's documented JSON layout and is tested against a hand-written sample; the real run in your CI is the real test. Expect the first run to need a small fix, exactly like zizmor's flags did.
+
+### Try it
+
+Run the workflow by hand (Actions, Run workflow). Leave "runtime_mode" empty and pick `sample-app`: the Running system row should turn DEFECTIVE with about 7 findings. Then pick `sample-app-fixed`: the workflow chooses the hardened app automatically, and you should see the runtime layer **clean**. If a stray low or informational finding shows up in hardened mode, it won't block, because only medium and above do.
+
+### Check yourself
+
+1. What can a dynamic scan find that a static scan cannot?
+2. Why does the layer say "failed" when ZAP cannot reach the site?
+3. Why is it important to only scan systems you own?
+4. Why do runtime findings stay out of the SARIF upload?
+
+**Answers.**
+1. Problems that exist only in the live, configured system: headers, cookie flags, server banners, behaviour of deployed settings.
+2. Because "we saw nothing" would be mistaken for "nothing is wrong"; an unreachable target was never tested.
+3. Scanning someone else's system without permission can be illegal, and active scans can break things.
+4. SARIF locations are files in the repository; these findings point to URLs.
 
 ## Running the real scanners
 

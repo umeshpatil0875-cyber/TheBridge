@@ -15,3 +15,5 @@ Terraform entries in `trivy.json`, whose rule ids and wording are written from m
 of Trivy's style and may differ from the real tool). Real scanners may report
 more, fewer, or differently worded findings. When you run in normal mode with the real
 tools installed, you will see their actual output.
+
+`zap.json` follows OWASP ZAP's traditional JSON report layout (`site` -> `alerts` -> `instances`, `riskcode` 0-3). It is hand-written from memory of that layout and describes the weak mode of `../runtime-target`. It is only loaded in demo mode together with `--target-url`.

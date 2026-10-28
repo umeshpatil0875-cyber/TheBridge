@@ -170,6 +170,8 @@ def to_sarif(findings: list[Finding], prefix: str = "") -> str:
     rules: dict[str, dict] = {}
     results = []
     for f in _sorted(findings):
+        if f.category == "runtime":
+            continue  # these point at a URL, not a file in the repository; SARIF needs a file
         rule_id = f"{f.tool}/{f.rule_id}"
         rules.setdefault(rule_id, {"id": rule_id, "shortDescription": {"text": f.title}})
         uri = f"{prefix}/{f.file}" if prefix else f.file

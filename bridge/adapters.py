@@ -184,10 +184,63 @@ def parse_zizmor(data: Any, root: str = ".") -> list[Finding]:
     return findings
 
 
+_ZAP_RISK = {"0": "info", "1": "low", "2": "medium", "3": "high"}
+
+
+def _plain(text: str) -> str:
+    """ZAP writes its descriptions as little HTML snippets. Reports are plain text, so we
+    strip the tags (we never pass HTML through to the dashboard or the reports)."""
+    import re
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(text or ""))).strip()
+
+
+def parse_zap(data: Any, root: str = ".") -> list[Finding]:
+    """OWASP ZAP tests a RUNNING web application, from the outside, like an attacker's
+    browser would. Its traditional JSON report is: {"site": [{"@name": url, "alerts": [...]}]}
+    where each alert has a name, a numeric `riskcode` (0 info, 1 low, 2 medium, 3 high),
+    a description, a solution and a list of `instances` (the URLs where it was seen).
+
+    We make ONE finding per alert, located at its first URL, and say how many URLs
+    were affected. Findings belong to the "runtime" layer; they have no repository file,
+    so `file` holds the URL instead.
+    """
+    sites = (data or {}).get("site") or []
+    if isinstance(sites, dict):
+        sites = [sites]
+    findings = []
+    for site in sites:
+        for alert in site.get("alerts") or []:
+            instances = alert.get("instances") or []
+            first = instances[0].get("uri", "") if instances else ""
+            where = first or site.get("@name", "") or "unknown URL"
+            try:
+                count = int(alert.get("count") or len(instances) or 1)
+            except (TypeError, ValueError):
+                count = len(instances) or 1
+            rule = str(alert.get("alertRef") or alert.get("pluginid") or "zap")
+            title = _plain(alert.get("name") or alert.get("alert") or rule)
+            extra = f" Seen on {count} URL(s)." if count > 1 else ""
+            findings.append(
+                Finding(
+                    tool="zap",
+                    category="runtime",
+                    rule_id=rule,
+                    severity=_ZAP_RISK.get(str(alert.get("riskcode", "")), "info"),
+                    title=title,
+                    file=where,
+                    package="",
+                    description=(_plain(alert.get("desc")) + extra).strip(),
+                    fix=_plain(alert.get("solution")),
+                )
+            )
+    return findings
+
+
 # One lookup table, so the runner never needs an if/else chain per tool.
 ADAPTERS = {
     "gitleaks": parse_gitleaks,
     "semgrep": parse_semgrep,
     "trivy": parse_trivy,
     "zizmor": parse_zizmor,
+    "zap": parse_zap,
 }

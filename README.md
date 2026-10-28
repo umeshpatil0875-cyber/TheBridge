@@ -62,11 +62,11 @@ not be tested.
 ```
 sample-app/   intentionally vulnerable app (never deploy it)
 fixtures/     hand-written sample scanner outputs for --demo (see its README)
-bridge/       models, adapters, runner, layers, policy, report, cli
+bridge/       models, adapters, runner, layers, policy, opa, report, cli, store, server, upload
 policy.json   the blocking settings and waivers
 policy/       the same rules as Rego (OPA) + Rego unit tests
 scripts/      install-opa.sh (used by the workflow)
-tests/        75 tests
+tests/        137 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```
@@ -85,3 +85,30 @@ python -m bridge scan sample-app --policy-engine opa      # OPA decides, fails c
 
 Shadow mode: Python still decides the exit code; OPA's answer is shown next to it
 as agree / disagree / skipped / error. See Lesson 19 in LESSONS.md.
+
+## Phase 3: history and an API
+
+```
+python -m bridge.server create-project my-team          # prints a token once
+python -m bridge.server serve --port 8080               # the API
+SECUREBRIDGE_TOKEN=sb_... python -m bridge scan sample-app --upload-url http://127.0.0.1:8080
+```
+
+Endpoints: `GET /healthz`, `POST /api/v1/scans`, `GET /api/v1/scans`, `GET /api/v1/scans/<id>`,
+`GET /api/v1/trend`. Login with `Authorization: Bearer <token>`. See Lesson 21. This is a
+learning version: plain HTTP, SQLite, one process.
+
+## Dashboard
+
+With the API running, open `http://127.0.0.1:8080/dashboard`, paste your project token and press Connect.
+Charts: findings over time, severity mix, new vs fixed, findings by layer and by scanner, plus tables.
+One self-contained file (`bridge/dashboard.html`), light and dark mode, no outside libraries. See Lesson 25.
+
+## The running-system layer (OWASP ZAP)
+
+```
+python runtime-target/app.py --mode weak            # a demo web app (or --mode hardened)
+python -m bridge scan sample-app --target-url http://127.0.0.1:8081
+```
+
+Needs Docker (ZAP runs from an image). Without `--target-url` the layer stays "not scanned". See Lesson 28.

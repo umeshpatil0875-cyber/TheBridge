@@ -1,0 +1,172 @@
+{
+  "@programName": "ZAP",
+  "@version": "hand-written sample",
+  "site": [
+    {
+      "@name": "http://127.0.0.1:8081",
+      "@host": "127.0.0.1",
+      "@port": "8081",
+      "@ssl": "false",
+      "alerts": [
+        {
+          "pluginid": "10038",
+          "alertRef": "10038-1",
+          "alert": "Content Security Policy (CSP) Header Not Set",
+          "name": "Content Security Policy (CSP) Header Not Set",
+          "riskcode": "2",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS).</p>",
+          "solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.</p>",
+          "count": "3",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/about",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/login",
+              "method": "GET"
+            }
+          ]
+        },
+        {
+          "pluginid": "10020",
+          "alertRef": "10020-1",
+          "alert": "Missing Anti-clickjacking Header",
+          "name": "Missing Anti-clickjacking Header",
+          "riskcode": "2",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>The response does not protect against 'ClickJacking' attacks. It should include either Content-Security-Policy with 'frame-ancestors' directive or X-Frame-Options.</p>",
+          "solution": "<p>Modern Web browsers support the Content-Security-Policy and X-Frame-Options HTTP headers.</p>",
+          "count": "1",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            }
+          ]
+        },
+        {
+          "pluginid": "10021",
+          "alertRef": "10021-1",
+          "alert": "X-Content-Type-Options Header Missing",
+          "name": "X-Content-Type-Options Header Missing",
+          "riskcode": "1",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>The Anti-MIME-Sniffing header X-Content-Type-Options was not set to 'nosniff'.</p>",
+          "solution": "<p>Ensure that the application/web server sets the Content-Type header appropriately, and that it sets the X-Content-Type-Options header to 'nosniff'.</p>",
+          "count": "3",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/about",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/login",
+              "method": "GET"
+            }
+          ]
+        },
+        {
+          "pluginid": "10010",
+          "alertRef": "10010-1",
+          "alert": "Cookie No HttpOnly Flag",
+          "name": "Cookie No HttpOnly Flag",
+          "riskcode": "1",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>A cookie has been set without the HttpOnly flag, which means that the cookie can be accessed by JavaScript.</p>",
+          "solution": "<p>Ensure that the HttpOnly flag is set for all cookies.</p>",
+          "count": "1",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            }
+          ]
+        },
+        {
+          "pluginid": "10054",
+          "alertRef": "10054-1",
+          "alert": "Cookie without SameSite Attribute",
+          "name": "Cookie without SameSite Attribute",
+          "riskcode": "1",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>A cookie has been set without the SameSite attribute, which means that the cookie can be sent as a result of a 'cross-site' request.</p>",
+          "solution": "<p>Ensure that the SameSite attribute is set to either 'lax' or ideally 'strict' for all cookies.</p>",
+          "count": "1",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            }
+          ]
+        },
+        {
+          "pluginid": "10036",
+          "alertRef": "10036-1",
+          "alert": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "name": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "riskcode": "1",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>The web/application server is leaking version information via the \"Server\" HTTP response header.</p>",
+          "solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to suppress the \"Server\" header.</p>",
+          "count": "3",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/about",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/login",
+              "method": "GET"
+            }
+          ]
+        },
+        {
+          "pluginid": "10063",
+          "alertRef": "10063-1",
+          "alert": "Permissions Policy Header Not Set",
+          "name": "Permissions Policy Header Not Set",
+          "riskcode": "1",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>Permissions Policy Header is an added layer of security that helps to restrict from unauthorized access or usage of browser/client features by web resources.</p>",
+          "solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to set the Permissions-Policy header.</p>",
+          "count": "3",
+          "instances": [
+            {
+              "uri": "http://127.0.0.1:8081/",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/about",
+              "method": "GET"
+            },
+            {
+              "uri": "http://127.0.0.1:8081/login",
+              "method": "GET"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

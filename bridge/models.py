@@ -16,7 +16,7 @@ from typing import Optional
 SEVERITIES = ["info", "low", "medium", "high", "critical"]
 
 # What kind of problem is it? The policy can treat each kind differently.
-CATEGORIES = ["secret", "code", "dependency", "config"]
+CATEGORIES = ["secret", "code", "dependency", "config", "runtime"]
 
 
 def severity_rank(severity: str) -> int:

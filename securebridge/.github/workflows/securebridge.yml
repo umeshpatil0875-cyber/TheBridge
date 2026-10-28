@@ -18,6 +18,11 @@ on:
         type: choice
         options: [sample-app, sample-app-fixed]
         default: sample-app
+      runtime_mode:
+        description: "Demo web app for the running-system layer. Leave empty for automatic (weak, or hardened with sample-app-fixed)"
+        type: choice
+        options: ["", weak, hardened]
+        default: ""
 
 # Least privilege: by default the workflow may only READ the repository.
 # The scan job is granted one extra permission below, and only that job.
@@ -33,6 +38,13 @@ env:
   # Who decides pass/block: "opa" (OPA decides, fails closed if it cannot answer),
   # "shadow" (Python decides, OPA is compared) or "python".
   POLICY_ENGINE: opa
+  # The running-system layer (Lesson 28): a demo web app is started on the runner and
+  # attacked from outside by OWASP ZAP. "weak" or "hardened", chosen when you run by hand;
+  # if you scan sample-app-fixed and choose nothing, it uses hardened, so the whole fixed
+  # system can go green.
+  RUNTIME_MODE: ${{ inputs.runtime_mode || (inputs.scan_path == 'sample-app-fixed' && 'hardened') || 'weak' }}
+  TARGET_URL: http://127.0.0.1:8081
+  ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:stable
   # Scanner versions. Empty means "use the latest release". The versions that were
   # actually used are printed in the run log (step "Show scanner versions").
   # To make runs repeatable, copy those numbers here, for example "8.30.1".
@@ -45,10 +57,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false # we never push, so the job keeps no git password
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - name: Run the project's tests
@@ -60,7 +72,7 @@ jobs:
   policy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false # we never push, so the job keeps no git password
       - name: Install OPA
@@ -80,10 +92,10 @@ jobs:
   workflow-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - name: Install zizmor
@@ -100,11 +112,11 @@ jobs:
       contents: read
       security-events: write # needed only to upload SARIF to the Security tab
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false # we never push, so the job keeps no git password
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
@@ -165,6 +177,23 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # ---- the running-system layer ----
+      # A tiny web app is started in the background; ZAP will attack it from outside.
+      - name: Start the demo web app
+        run: |
+          nohup python runtime-target/app.py --mode "$RUNTIME_MODE" > target.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS "$TARGET_URL/" > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS "$TARGET_URL/" > /dev/null || { echo "the demo app did not start"; cat target.log; exit 1; }
+
+      - name: Pull the ZAP image
+        run: |
+          docker pull "$ZAP_IMAGE"
+          echo "To pin ZAP, set ZAP_IMAGE to this exact image:"
+          docker image inspect --format '{{index .RepoDigests 0}}' "$ZAP_IMAGE"
+
       # If the policy blocks, this step exits with code 1 and the job turns red.
       # The steps below use "if: always()" so results are still published.
       # Optional history: if you add the repository secrets SECUREBRIDGE_URL and
@@ -175,7 +204,7 @@ jobs:
         env:
           SECUREBRIDGE_URL: ${{ secrets.SECUREBRIDGE_URL }}
           SECUREBRIDGE_TOKEN: ${{ secrets.SECUREBRIDGE_TOKEN }}
-        run: python -m bridge scan "$SCAN_PATH" --policy-engine "$POLICY_ENGINE" --out out
+        run: python -m bridge scan "$SCAN_PATH" --policy-engine "$POLICY_ENGINE" --target-url "$TARGET_URL" --out out
 
       - name: Show the report in the run summary
         if: always()
@@ -188,14 +217,14 @@ jobs:
       - name: Upload findings to the Security tab
         if: always() && hashFiles('out/report.sarif') != ''
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: out/report.sarif
           category: securebridge
 
       - name: Keep the reports as a download
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: securebridge-reports
           path: out/

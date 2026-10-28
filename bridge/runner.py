@@ -55,7 +55,50 @@ def _command(tool: str, report_path: str) -> list[str]:
     raise ValueError(tool)
 
 
-def run_real(tool: str, root: str) -> ToolRun:
+ZAP_IMAGE = os.environ.get("ZAP_IMAGE", "ghcr.io/zaproxy/zaproxy:stable")
+ZAP_MINUTES = 1  # how long ZAP may crawl the site before it stops
+
+
+def run_zap(target_url: str) -> ToolRun:
+    """LESSON 28: the other scanners read FILES. ZAP attacks a RUNNING app over HTTP, so it
+    needs a live address and runs from a Docker image (so there is nothing to install).
+
+    "-I" tells it not to fail just because it found something; "-m" limits the crawl.
+    The image runs as an unprivileged user, so the shared folder must be writable by it.
+    """
+    if not target_url or not target_url.startswith(("http://", "https://")) or target_url.startswith("-"):
+        return ToolRun("zap", "skipped", "no valid --target-url (must start with http:// or https://)")
+    if shutil.which("docker") is None:
+        return ToolRun("zap", "skipped", "'docker' is not installed, ZAP runs from a Docker image")
+    with tempfile.TemporaryDirectory() as work:
+        os.chmod(work, 0o777)
+        command = ["docker", "run", "--rm", "--network", "host", "-v", f"{work}:/zap/wrk:rw",
+                   ZAP_IMAGE, "zap-baseline.py", "-t", target_url, "-J", "zap.json",
+                   "-I", "-m", str(ZAP_MINUTES)]
+        try:
+            proc = subprocess.run(command, capture_output=True, text=True,
+                                  timeout=TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            return ToolRun("zap", "failed", f"timed out after {TIMEOUT_SECONDS}s")
+        report = os.path.join(work, "zap.json")
+        if proc.returncode not in (0, 1, 2) or not os.path.exists(report):
+            tail = (proc.stderr.strip() or proc.stdout.strip())[-250:]
+            return ToolRun("zap", "failed", f"exit code {proc.returncode}, no report. {tail}")
+        try:
+            with open(report) as handle:
+                data = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return ToolRun("zap", "failed", "its report was not readable JSON")
+    findings = ADAPTERS["zap"](data, ".")
+    if not (data.get("site") or []):
+        # Nothing was crawled, which is NOT the same as a clean site.
+        return ToolRun("zap", "failed", f"ZAP could not reach or crawl {target_url}")
+    return ToolRun("zap", "ok", f"{len(findings)} finding(s) from {target_url}", findings)
+
+
+def run_real(tool: str, root: str, target_url: str = "") -> ToolRun:
+    if tool == "zap":
+        return run_zap(target_url)
     if shutil.which(tool) is None:
         return ToolRun(tool, "skipped", f"'{tool}' is not installed on this machine")
     if tool == "zizmor" and not os.path.isdir(os.path.join(root, ".github", "workflows")):
