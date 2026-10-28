@@ -46,6 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -59,6 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
       - name: Install OPA
         env:
           GH_TOKEN: ${{ github.token }}
@@ -70,6 +74,25 @@ jobs:
       - name: Run the Rego unit tests
         run: opa test policy/ -v
 
+  # Lesson 26: the pipeline is a target too, so scan THIS repository's own workflow files
+  # with zizmor. It runs on the real .github/workflows folder, not on sample-app, so the
+  # deliberately broken specimen is not involved. It runs offline and needs no token.
+  workflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install zizmor
+        run: pip install zizmor
+      - name: Show the zizmor version
+        run: zizmor --version
+      - name: Check our own workflow files
+        run: zizmor --offline .github/workflows/
+
   scan:
     needs: test
     runs-on: ubuntu-latest
@@ -78,6 +101,8 @@ jobs:
       security-events: write # needed only to upload SARIF to the Security tab
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
 
       - uses: actions/setup-python@v5
         with:
@@ -142,6 +167,10 @@ jobs:
 
       # If the policy blocks, this step exits with code 1 and the job turns red.
       # The steps below use "if: always()" so results are still published.
+      # Optional history: if you add the repository secrets SECUREBRIDGE_URL and
+      # SECUREBRIDGE_TOKEN (Settings > Secrets and variables > Actions), the report is
+      # also uploaded to your SecureBridge API. Without them (or on pull requests from
+      # forks, which never get secrets) the upload is skipped. It never changes the verdict.
       - name: Run SecureBridge
         env:
           SECUREBRIDGE_URL: ${{ secrets.SECUREBRIDGE_URL }}
