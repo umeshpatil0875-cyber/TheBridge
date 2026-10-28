@@ -66,7 +66,7 @@ bridge/       models, adapters, runner, layers, policy, opa, report, cli, store,
 policy.json   the blocking settings and waivers
 policy/       the same rules as Rego (OPA) + Rego unit tests
 scripts/      install-opa.sh (used by the workflow)
-tests/        94 tests
+tests/        104 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```
@@ -97,3 +97,9 @@ SECUREBRIDGE_TOKEN=sb_... python -m bridge scan sample-app --upload-url http://1
 Endpoints: `GET /healthz`, `POST /api/v1/scans`, `GET /api/v1/scans`, `GET /api/v1/scans/<id>`,
 `GET /api/v1/trend`. Login with `Authorization: Bearer <token>`. See Lesson 21. This is a
 learning version: plain HTTP, SQLite, one process.
+
+## Dashboard
+
+With the API running, open `http://127.0.0.1:8080/dashboard`, paste your project token and press Connect.
+Charts: findings over time, severity mix, new vs fixed, findings by layer and by scanner, plus tables.
+One self-contained file (`bridge/dashboard.html`), light and dark mode, no outside libraries. See Lesson 25.

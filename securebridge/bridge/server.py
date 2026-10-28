@@ -10,6 +10,8 @@ door, and it decides who may come in.
   GET  /api/v1/scans         list this project's scans, newest first
   GET  /api/v1/scans/<id>    one scan with all its findings
   GET  /api/v1/trend         verdict + counts per scan, oldest first (for charts)
+  GET  /api/v1/insights      the same plus counts by severity/layer/tool and new/fixed
+  GET  /dashboard            the dashboard page (asks you for the token; no data without it)
 
 Login: send the project token as   Authorization: Bearer <token>
 The token decides which project you are, so you can only ever see your own scans.
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -30,6 +33,19 @@ from urllib.parse import parse_qs, urlparse
 from . import store
 
 MAX_BODY = 5 * 1024 * 1024  # 5 MB
+DASHBOARD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
+
+# LESSON 25 (browser safety headers): the dashboard page runs code in your browser, so we
+# tell the browser exactly what it may do: only our own script and styles, only talk to
+# this same server, never be embedded in another site, never guess content types.
+PAGE_HEADERS = {
+    "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; "
+                               "style-src 'unsafe-inline'; connect-src 'self'; "
+                               "base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+}
 
 
 def make_handler(db_path: str):
@@ -48,6 +64,20 @@ def make_handler(db_path: str):
             self.end_headers()
             self.wfile.write(body)
 
+        def _page(self) -> None:
+            try:
+                with open(DASHBOARD, "rb") as handle:
+                    body = handle.read()
+            except OSError:
+                return self._send(404, {"error": "dashboard file missing"})
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            for name, value in PAGE_HEADERS.items():
+                self.send_header(name, value)
+            self.end_headers()
+            self.wfile.write(body)
+
         def _project(self, conn):
             header = self.headers.get("Authorization", "")
             token = header[7:].strip() if header.startswith("Bearer ") else ""
@@ -58,6 +88,8 @@ def make_handler(db_path: str):
             url = urlparse(self.path)
             if url.path == "/healthz":
                 return self._send(200, {"status": "ok"})
+            if url.path in ("/", "/dashboard"):
+                return self._page()
             conn = store.connect(db_path)
             try:
                 project = self._project(conn)
@@ -70,6 +102,8 @@ def make_handler(db_path: str):
                     return self._send(400, {"error": "limit must be a number"})
                 if url.path == "/api/v1/scans":
                     return self._send(200, {"scans": store.list_scans(conn, project, limit)})
+                if url.path == "/api/v1/insights":
+                    return self._send(200, {"insights": store.insights(conn, project, limit)})
                 if url.path == "/api/v1/trend":
                     return self._send(200, {"trend": store.trend(conn, project, limit)})
                 if url.path.startswith("/api/v1/scans/"):

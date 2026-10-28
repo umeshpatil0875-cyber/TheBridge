@@ -668,6 +668,51 @@ Things to know:
 
 **Answers.** (1) It means "this same machine", and GitHub's runner is a different machine. (2) Workflow files are readable by everyone with repo access and stay in git history forever; secrets are masked in logs and scoped. (3) The upload fails with a warning; the verdict is unchanged.
 
+## Lesson 25: the dashboard, and how to draw numbers honestly
+
+Open `http://127.0.0.1:8080/dashboard` while the API runs (or the same path on your ngrok address), paste a project token, and press Connect. The page is one HTML file, `bridge/dashboard.html`, with no libraries and nothing loaded from other sites. It draws every chart itself as SVG.
+
+### Why each chart exists
+
+| Chart | Question it answers | Why this shape |
+| --- | --- | --- |
+| Four number tiles | "Are we OK right now?" | One current value needs a tile, not a chart. The verdict has an icon **and** a word, so colour never carries meaning alone. |
+| Line: all vs blocking findings | "Is it getting better?" | Change over time is a line. Two series on **one** axis, never two scales. |
+| Stacked columns: severity per scan | "What kind of problems?" | Part-to-whole per scan. Severity is ordered, so it uses **one hue from light to dark**, not a rainbow. |
+| Bars above/below zero: new and fixed | "What changed since last time?" | Two opposite directions share a zero line. This is the chart that rewards the fingerprints from Lesson 21. |
+| Horizontal bars by layer | "Where is the problem?" | The layer model (Lesson 13) made visible; every layer shows, even at zero, and the Running system says "no scanner yet" instead of a misleading 0. |
+| Horizontal bars by scanner | "Which tool found what?" | Four identities, so four distinct colours, labelled directly. |
+| Findings table with filters | "Show me the actual problems." | A chart tells you something is wrong; the table says what. |
+| Scan history table | Everything again, as text | A **table view** for people who can't see colours, use a screen reader, or want exact numbers. |
+
+### Honest charting rules used here
+
+- **Start bars at zero.** A bar that starts at 90 makes 95 look like double.
+- **One y-axis per chart.** Two scales on one chart let you make any two lines "correlate".
+- **Colour follows meaning, not decoration.** Series colours were checked with a small script for colour-blind safety (the same colour pairs must stay apart for people with red-green colour blindness). Dark mode uses its own checked set, not an inverted copy.
+- **Never rely on colour alone**: direct labels, a legend, icons plus words, and the table.
+- **Hover shows the exact value**, and arrow keys work on the line chart for people not using a mouse.
+
+### Security of a page that shows data
+
+- **Untrusted text.** Finding titles come from scanners and uploads. If the page pasted them in as HTML, a malicious title like `<img onerror=...>` would run code in your browser (this is **XSS**, cross-site scripting). The page only ever sets `textContent`, which treats everything as plain text, and a test fails if `innerHTML` ever appears in the file.
+- **Content-Security-Policy header.** The server tells the browser: only run this page's own script, only connect to this same server, never load anything else, and never appear inside another site's frame (that blocks **clickjacking**).
+- **The page holds no data.** Anyone can load the HTML; without a token the API returns nothing. The token is kept in `sessionStorage`, which disappears when the tab closes, and Disconnect clears it. Never keep long-lived secrets in `localStorage`.
+- The `/api/v1/insights` endpoint does all counting on the server and, like every query, only for your project.
+
+### Check yourself
+
+1. Why does the "new and fixed" chart need at least two scans?
+2. Why show a table next to charts that already show the same numbers?
+3. What is XSS, and what is the one habit in this page that prevents it?
+4. Why is the Running system row not drawn as a bar of 0?
+
+**Answers.**
+1. "New" and "fixed" are differences between a scan and the one before it; one scan has nothing to compare with.
+2. For accessibility and exactness: not everyone can read colours or judge a bar's height, and tables are searchable.
+3. Attacker-controlled text running as code in someone's browser. Always insert data with `textContent`, never by building HTML strings.
+4. 0 would say "scanned and clean". We have no scanner for that layer, so the honest label is "no scanner yet" (Lesson 13's "not scanned" vs "clean").
+
 ## Running the real scanners
 
 Demo mode reads saved sample outputs from `fixtures/`. Those samples were written by hand

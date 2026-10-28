@@ -193,3 +193,36 @@ def get_scan(conn: sqlite3.Connection, project_id: int, scan_id: int) -> Optiona
 def trend(conn: sqlite3.Connection, project_id: int, limit: int = 30) -> list[dict]:
     """Oldest to newest, so it can be drawn left to right as a chart."""
     return list(reversed(list_scans(conn, project_id, limit)))
+
+
+def insights(conn: sqlite3.Connection, project_id: int, limit: int = 30) -> list[dict]:
+    """Everything the dashboard draws, one entry per scan, oldest first: counts by
+    severity, layer, tool and category, plus how many findings are new / fixed compared
+    with the scan before it. Always filtered by project_id (Lesson 22)."""
+    scans = trend(conn, project_id, limit)
+    if not scans:
+        return []
+    ids = [s["id"] for s in scans]
+    marks = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"SELECT scan_id, severity, layer, tool, category, fingerprint FROM findings"
+        f" WHERE project_id = ? AND scan_id IN ({marks})", [project_id, *ids]).fetchall()
+    per: dict[int, dict] = {i: {"severity": {}, "layers": {}, "tools": {}, "categories": {},
+                               "fingerprints": set()} for i in ids}
+    for r in rows:
+        bucket = per[r["scan_id"]]
+        for key, value in (("severity", r["severity"]), ("layers", r["layer"]),
+                           ("tools", r["tool"]), ("categories", r["category"])):
+            bucket[key][value] = bucket[key].get(value, 0) + 1
+        bucket["fingerprints"].add(r["fingerprint"])
+    out, previous = [], None
+    for scan in scans:
+        bucket = per[scan["id"]]
+        entry = dict(scan)
+        entry.update({k: bucket[k] for k in ("severity", "layers", "tools", "categories")})
+        now = bucket["fingerprints"]
+        entry["new"] = len(now - previous) if previous is not None else None
+        entry["fixed"] = len(previous - now) if previous is not None else None
+        previous = now
+        out.append(entry)
+    return out

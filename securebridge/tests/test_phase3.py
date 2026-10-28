@@ -123,6 +123,63 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(store.list_scans(self.conn, pid)[0]["id"], second)
 
 
+class InsightsTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.conn = store.connect(os.path.join(self.tmp.name, "i.db"))
+        self.addCleanup(self.conn.close)
+        self.a = store.authenticate(self.conn, store.create_project(self.conn, "alpha"))
+        self.b = store.authenticate(self.conn, store.create_project(self.conn, "beta"))
+
+    def test_empty_project_has_no_insights(self):
+        self.assertEqual(store.insights(self.conn, self.a), [])
+
+    def test_counts_by_severity_layer_and_tool_add_up_to_the_total(self):
+        store.save_scan(self.conn, self.a, demo_report())
+        (entry,) = store.insights(self.conn, self.a)
+        for key in ("severity", "layers", "tools", "categories"):
+            self.assertEqual(sum(entry[key].values()), entry["total"], key)
+        self.assertIsNone(entry["new"])
+
+    def test_new_and_fixed_are_computed_against_the_previous_scan_only(self):
+        store.save_scan(self.conn, self.a, demo_report())
+        store.save_scan(self.conn, self.a, demo_report(drop=4))
+        store.save_scan(self.conn, self.a, demo_report())
+        first, second, third = store.insights(self.conn, self.a)
+        self.assertEqual((second["new"], second["fixed"]), (0, 4))
+        self.assertEqual((third["new"], third["fixed"]), (4, 0))
+
+    def test_insights_never_include_another_projects_scans(self):
+        store.save_scan(self.conn, self.a, demo_report())
+        store.save_scan(self.conn, self.b, demo_report(drop=5))
+        self.assertEqual(len(store.insights(self.conn, self.a)), 1)
+        self.assertEqual(len(store.insights(self.conn, self.b)), 1)
+        self.assertNotEqual(store.insights(self.conn, self.a)[0]["total"],
+                            store.insights(self.conn, self.b)[0]["total"])
+
+
+class DashboardFileTests(unittest.TestCase):
+    def setUp(self):
+        with open(server.DASHBOARD) as handle:
+            self.html = handle.read()
+
+    def test_the_page_never_builds_html_from_data(self):
+        # Findings come from scanners and uploads: untrusted text. Only textContent is allowed.
+        self.assertNotIn("innerHTML", self.html)
+        self.assertNotIn("insertAdjacentHTML", self.html)
+        self.assertNotIn("document.write", self.html)
+
+    def test_the_page_loads_nothing_from_other_sites(self):
+        self.assertNotIn("http://", self.html.replace("http://www.w3.org/2000/svg", ""))
+        self.assertNotIn("https://", self.html)
+        self.assertNotIn("<script src", self.html)
+
+    def test_the_page_keeps_dark_mode_and_a_table_alternative(self):
+        self.assertIn("prefers-color-scheme: dark", self.html)
+        self.assertIn('id="history"', self.html)
+
+
 class ApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -191,6 +248,25 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.call("GET", "/api/v1/scans/abc", self.token_a)[0], 400)
         self.assertEqual(self.call("GET", "/api/v1/scans?limit=x", self.token_a)[0], 400)
         self.assertEqual(self.call("GET", "/api/v1/nothing", self.token_a)[0], 404)
+
+    def test_dashboard_page_is_served_without_login_but_with_safety_headers(self):
+        with urllib.request.urlopen(self.base + "/dashboard", timeout=10) as response:
+            body = response.read().decode()
+            headers = response.headers
+        self.assertIn("SecureBridge", body)
+        self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+        self.assertIn("connect-src 'self'", headers["Content-Security-Policy"])
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        self.assertNotIn(self.token_a, body)  # the page itself contains no data or tokens
+
+    def test_insights_endpoint_needs_a_token_and_returns_chart_data(self):
+        self.assertEqual(self.call("GET", "/api/v1/insights")[0], 401)
+        self.call("POST", "/api/v1/scans", self.token_a, {"report": demo_report()})
+        status, out = self.call("GET", "/api/v1/insights?limit=5", self.token_a)
+        self.assertEqual(status, 200)
+        entry = out["insights"][-1]
+        for key in ("severity", "layers", "tools", "new", "fixed", "total", "blocking_count"):
+            self.assertIn(key, entry)
 
     def test_oversized_bodies_are_refused(self):
         old = server.MAX_BODY
