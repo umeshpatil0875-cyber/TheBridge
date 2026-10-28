@@ -1,0 +1,11 @@
+# Keeps the pinned action hashes in .github/workflows up to date: Dependabot opens a pull
+# request when a new version appears, so upgrades are a visible, reviewable decision
+# instead of silently arriving (or silently never happening). See LESSONS.md, Lesson 26.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7 # wait a week after a release, so a hijacked release is noticed first
