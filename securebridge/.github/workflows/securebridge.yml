@@ -1,0 +1,202 @@
+# SecureBridge pipeline. Read LESSONS.md, Lesson 14, for a line-by-line explanation.
+#
+# What it does on every push to main and every pull request:
+#   1. "test" job: runs the project's own tests, so a broken engine is caught first.
+#   2. "scan" job: installs the scanners, runs the bridge, publishes the results, and
+#      FAILS the job when the policy verdict is BLOCKED (the bridge exits with code 1).
+
+name: SecureBridge
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: # lets you start it by hand from the Actions tab
+    inputs:
+      scan_path:
+        description: "Folder to scan (sample-app is the broken one, sample-app-fixed the repaired one)"
+        type: choice
+        options: [sample-app, sample-app-fixed]
+        default: sample-app
+
+# Least privilege: by default the workflow may only READ the repository.
+# The scan job is granted one extra permission below, and only that job.
+permissions:
+  contents: read
+
+env:
+  # Folder to scan. This demo repo scans the intentionally vulnerable sample app.
+  # For a real project, change it to "." to scan the whole repository, which also
+  # lets the bridge check its own pipeline files (this workflow) with zizmor.
+  # When you start the run by hand you can pick the folder; otherwise sample-app.
+  SCAN_PATH: ${{ inputs.scan_path || 'sample-app' }}
+  # Who decides pass/block: "opa" (OPA decides, fails closed if it cannot answer),
+  # "shadow" (Python decides, OPA is compared) or "python".
+  POLICY_ENGINE: opa
+  # Scanner versions. Empty means "use the latest release". The versions that were
+  # actually used are printed in the run log (step "Show scanner versions").
+  # To make runs repeatable, copy those numbers here, for example "8.30.1".
+  # The run summary ends with a "Versions to pin" block you can copy line by line.
+  GITLEAKS_VERSION: "8.30.1"
+  TRIVY_VERSION: "0.76.1"
+  OPA_VERSION: "1.21.4"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the project's tests
+        run: python -m unittest discover -s tests -v
+
+  # Tests the policy rules themselves, the same way "test" tests the Python code.
+  # It runs in parallel and does not hold up the scan, so a mistake in the new Rego
+  # rules turns this job red without hiding the scan results.
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
+      - name: Install OPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/install-opa.sh "$OPA_VERSION"
+      - name: Show the OPA version
+        run: opa version
+      - name: Check the Rego files for mistakes
+        run: opa check policy/
+      - name: Run the Rego unit tests
+        run: opa test policy/ -v
+
+  # Lesson 26: the pipeline is a target too, so scan THIS repository's own workflow files
+  # with zizmor. It runs on the real .github/workflows folder, not on sample-app, so the
+  # deliberately broken specimen is not involved. It runs offline and needs no token.
+  workflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install zizmor
+        run: pip install zizmor
+      - name: Show the zizmor version
+        run: zizmor --version
+      - name: Check our own workflow files
+        run: zizmor --offline .github/workflows/
+
+  scan:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # needed only to upload SARIF to the Security tab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The GitHub CLI ("gh") is preinstalled on GitHub's machines. It finds the right
+      # file in a release by a name pattern, so we never have to guess a full file name.
+      - name: Install the scanners
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pip install semgrep zizmor
+          mkdir -p "$HOME/bin" downloads
+
+          fetch() {
+            repo="$1"; pattern="$2"; version="$3"
+            tag=""
+            if [ -n "$version" ]; then tag="v$version"; fi
+            if ! gh release download $tag --repo "$repo" --pattern "$pattern" --dir downloads --clobber; then
+              echo "Could not download '$pattern' from $repo (${tag:-latest}). Files in that release:"
+              gh release view $tag --repo "$repo" --json tagName,assets --jq '.tagName, (.assets[].name)'
+              exit 1
+            fi
+          }
+
+          fetch gitleaks/gitleaks '*linux_x64.tar.gz' "$GITLEAKS_VERSION"
+          tar -xzf downloads/gitleaks_*_linux_x64.tar.gz -C "$HOME/bin" gitleaks
+
+          fetch aquasecurity/trivy '*Linux-64bit.tar.gz' "$TRIVY_VERSION"
+          tar -xzf downloads/trivy_*_Linux-64bit.tar.gz -C "$HOME/bin" trivy
+
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      # OPA evaluates the same findings in "shadow mode" (see Lesson 19).
+      - name: Install OPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/install-opa.sh "$OPA_VERSION"
+
+      - name: Show scanner versions
+        run: |
+          gitleaks version
+          trivy --version
+          semgrep --version
+          zizmor --version
+          opa version
+
+      - name: Print the versions to pin
+        run: |
+          {
+            echo ""
+            echo "## Versions to pin"
+            echo ""
+            echo "Paste these into the env: block of the workflow to make runs repeatable:"
+            echo '```'
+            echo "GITLEAKS_VERSION: \"$(gitleaks version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)\""
+            echo "TRIVY_VERSION: \"$(trivy --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)\""
+            echo "OPA_VERSION: \"$(opa version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # If the policy blocks, this step exits with code 1 and the job turns red.
+      # The steps below use "if: always()" so results are still published.
+      # Optional history: if you add the repository secrets SECUREBRIDGE_URL and
+      # SECUREBRIDGE_TOKEN (Settings > Secrets and variables > Actions), the report is
+      # also uploaded to your SecureBridge API. Without them (or on pull requests from
+      # forks, which never get secrets) the upload is skipped. It never changes the verdict.
+      - name: Run SecureBridge
+        env:
+          SECUREBRIDGE_URL: ${{ secrets.SECUREBRIDGE_URL }}
+          SECUREBRIDGE_TOKEN: ${{ secrets.SECUREBRIDGE_TOKEN }}
+        run: python -m bridge scan "$SCAN_PATH" --policy-engine "$POLICY_ENGINE" --out out
+
+      - name: Show the report in the run summary
+        if: always()
+        run: |
+          if [ -f out/report.md ]; then cat out/report.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      # Findings appear in the repository's Security tab (Code scanning).
+      # continue-on-error: on private repositories without GitHub code scanning this
+      # upload is refused, and that must not hide the real verdict above.
+      - name: Upload findings to the Security tab
+        if: always() && hashFiles('out/report.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: out/report.sarif
+          category: securebridge
+
+      - name: Keep the reports as a download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: securebridge-reports
+          path: out/
+          if-no-files-found: ignore

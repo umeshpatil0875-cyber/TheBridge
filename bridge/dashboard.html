@@ -138,6 +138,7 @@
   .ok { color: var(--good-text); } .bad { color: var(--critical-text); }
   .empty { padding: 60px 0; text-align: center; color: var(--muted); }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .rule { color: var(--muted); font-size: 11.5px; margin-top: 2px; word-break: break-all; }
   .hidden { display: none !important; }
   details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-top: 10px; }
 </style>
@@ -610,7 +611,12 @@ function renderFindings() {
     tr.appendChild(sev);
     tr.appendChild(el("td", null, LAYER_NAME[f.layer] || f.layer || "-"));
     tr.appendChild(el("td", { class: "mono" }, f.file + (f.line ? ":" + f.line : "") + (f.package ? " (" + f.package + ")" : "")));
-    tr.appendChild(el("td", null, f.title.length > 140 ? f.title.slice(0, 137) + "..." : f.title));
+    const what = el("td", null, f.title.length > 140 ? f.title.slice(0, 137) + "..." : f.title);
+    if (f.rule_id) {
+      const rule = el("div", { class: "mono rule" }, f.rule_id.length > 70 ? "..." + f.rule_id.slice(-67) : f.rule_id);
+      what.appendChild(rule);
+    }
+    tr.appendChild(what);
     tr.appendChild(el("td", null, f.tool));
     body.appendChild(tr);
   });

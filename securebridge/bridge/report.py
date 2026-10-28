@@ -17,6 +17,7 @@ import json
 from collections import Counter
 
 from .layers import LAYER_NAMES, first_defective, summarize
+from .grouping import group_findings
 from .models import SEVERITIES, Finding, severity_rank
 from .policy import Decision
 from .runner import ToolRun
@@ -94,6 +95,18 @@ def to_markdown(runs: list[ToolRun], findings: list[Finding], decision: Decision
                     + ("The scan FAILED CLOSED: no verdict was given." if enforcing
                        else "The Python result above is unaffected.")]
 
+    groups = group_findings([f.to_dict() for f in findings])
+    if groups:
+        out += ["", f"## Things to fix ({len(findings)} findings in {len(groups)} places)", "",
+                "Several findings often have one fix, so they are grouped by library or by "
+                "line of code. Nothing is hidden: every finding is still listed below.", "",
+                "| Worst | Layer | Where | Findings | Scanners |", "| --- | --- | --- | --- | --- |"]
+        for g in groups[:40]:
+            out.append(f"| {g['worst_severity']} | {LAYER_NAMES.get(g['layer'], g['layer'] or '-')} | "
+                       f"{g['where']} | {g['count']} | {', '.join(g['tools'])} |")
+        if len(groups) > 40:
+            out.append(f"| ... | | {len(groups) - 40} more places | | |")
+
     out += ["", "## Findings by severity", "", "| Severity | Count |", "| --- | --- |"]
     for sev in reversed(SEVERITIES):
         if counts.get(sev):
@@ -136,6 +149,8 @@ def to_json(runs: list[ToolRun], findings: list[Finding], decision: Decision,
             "first_defective_layer": broken["layer"] if broken else None,
             "policy_check": policy_check,
             "layers": rows,
+            "problem_count": len(group_findings([f.to_dict() for f in findings])),
+            "problems": group_findings([f.to_dict() for f in findings]),
             "duplicates_merged": dropped,
             "scanners": [{"name": r.name, "status": r.status, "detail": r.detail} for r in runs],
             "findings": [f.to_dict() for f in _sorted(findings)],

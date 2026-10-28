@@ -66,7 +66,7 @@ bridge/       models, adapters, runner, layers, policy, opa, report, cli, store,
 policy.json   the blocking settings and waivers
 policy/       the same rules as Rego (OPA) + Rego unit tests
 scripts/      install-opa.sh (used by the workflow)
-tests/        104 tests
+tests/        118 tests
 .github/      the GitHub Actions workflow (phase 2a)
 LESSONS.md    the guided tour
 ```

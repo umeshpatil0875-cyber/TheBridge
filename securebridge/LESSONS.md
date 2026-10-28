@@ -713,6 +713,58 @@ Open `http://127.0.0.1:8080/dashboard` while the API runs (or the same path on y
 3. Attacker-controlled text running as code in someone's browser. Always insert data with `textContent`, never by building HTML strings.
 4. 0 would say "scanned and clean". We have no scanner for that layer, so the honest label is "no scanner yet" (Lesson 13's "not scanned" vs "clean").
 
+## Lesson 26: scan your own pipeline (and pin what you depend on)
+
+In Lesson 17 we learned that the pipeline is a target: whoever controls your workflow file controls your secrets and your releases. SecureBridge now checks **its own** workflow. A new job, `workflow-lint`, runs `zizmor` on `.github/workflows/`: the real folder at the root of the repo. The deliberately broken specimen in `sample-app/` is untouched, because GitHub never runs it and it is scanned separately.
+
+Changes made while preparing it:
+
+- **`persist-credentials: false`** on every `actions/checkout`. By default checkout leaves a git password on disk for later steps; if a later step leaks the workspace (for example through an uploaded artifact, which zizmor reports as `artipacked`), that password leaks with it. We never push from these jobs, so we don't keep it. This is **least privilege** again.
+- **Pinned scanner versions** (`gitleaks 8.30.1`, `trivy 0.76.1`, `opa 1.21.4`), copied from the "Versions to pin" block of a real run, so a new release can't change your results overnight. A test fails if one goes back to "latest".
+
+**What I could not verify.** I cannot run zizmor here, so I don't know what it will say about the workflow. Expect it to be either green or to name specific lines. Two things it may mention: actions referenced by a version tag (`@v4`) instead of a full commit SHA, and `github/codeql-action`. A **commit SHA** can't be silently moved by the action's owner, a tag can (this is how the tj-actions attack in Lesson 17 worked). Pinning to SHAs is better but needs the exact hashes, and a wrong one breaks the pipeline, so we let the real zizmor output decide. Paste me the job's result and we will fix exactly what it says. Updating pinned SHAs by hand is tedious, which is why teams use Renovate or Dependabot to send those updates as pull requests.
+
+### Check yourself
+
+1. Why scan `.github/workflows/` and not `sample-app/` for this job?
+2. What does `persist-credentials: false` take away, and why is that safe here?
+3. Why can a tag like `@v4` be riskier than a commit SHA?
+
+**Answers.**
+1. The repo's own workflow is the one that really runs with your secrets; the sample-app specimen is inert test data.
+2. The git password left in the checkout. Safe because none of our jobs push to the repository.
+3. The owner (or an attacker with their access) can move a tag to new code; a SHA names exactly one version of the code forever.
+
+## Lesson 27: findings are not problems (grouping)
+
+A real run said "62 findings, 24 blocking". That sounds like weeks of work. Look closer: three different Semgrep rules fire on `app.py:28`, one line, and five CVEs in `flask` all say "upgrade flask". Fixing that one line, or that one library, clears several findings at once. The number a team really cares about is **how many places do I have to touch?**
+
+`bridge/grouping.py` answers it with two deliberately simple rules:
+
+- findings about a **library** group by the package (you fix them by upgrading it);
+- everything else groups by **file and line** (several rules on one line are usually one edit).
+
+You see it in three places: a "Things to fix" table in `report.md`, a `problems` list in `report.json`, and the dashboard's findings table, which now defaults to "Grouped by place to fix" (switch to "Every finding" for the full list). The CLI prints "62 finding(s) in N place(s) to fix".
+
+### The rule that matters: group for display, never delete
+
+Lesson 15 learned the hard way that merging findings early can hide a real one: a privileged container once vanished because it shared a line with a different rule. So grouping happens **after** the policy decision and only changes how things are shown. Every finding is still stored, counted, waivable and able to block. A test checks that the group counts always add up to the number of findings, and another that the verdict never changes.
+
+### Honest limits
+
+Two tools can describe the same flaw at different places: Trivy flags `Dockerfile` as a whole, Semgrep flags `Dockerfile:6`. Our rule can't link those. Linking them needs a hand-maintained table of "these rules mean the same thing", which is exactly what commercial ASPM tools maintain. If you ever build one, store it as data (like `policy.json`) and test it.
+
+### Check yourself
+
+1. Why is "number of findings" a poor measure of how much work is left?
+2. Why do we group after the policy decision rather than before?
+3. Name one case this grouping gets wrong.
+
+**Answers.**
+1. One fix can clear many findings, so the finding count overstates the work (and different findings need very different effort).
+2. Grouping early could merge or hide a finding the policy should block; doing it afterwards cannot change the verdict.
+3. The same flaw reported at different places by different tools (a whole-file finding and a line finding) stays as two places.
+
 ## Running the real scanners
 
 Demo mode reads saved sample outputs from `fixtures/`. Those samples were written by hand

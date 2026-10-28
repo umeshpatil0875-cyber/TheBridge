@@ -26,6 +26,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
+from .grouping import group_findings
 from .models import SEVERITIES, Finding
 
 SCHEMA = """
@@ -184,6 +185,11 @@ def get_scan(conn: sqlite3.Connection, project_id: int, scan_id: int) -> Optiona
         return None
     scan = {k: row[k] for k in ("id", "created_at", "commit_sha", "branch", "verdict",
                                 "blocking_count", "first_defective_layer")}
+    scan["problems"] = []
+    try:
+        scan["problems"] = group_findings(json.loads(row["report_json"]).get("findings", []))
+    except (ValueError, KeyError, TypeError):
+        pass  # an unreadable old report just has no grouped view
     scan["findings"] = [dict(r) for r in conn.execute(
         "SELECT fingerprint, tool, category, rule_id, severity, title, file, line, package, layer"
         " FROM findings WHERE scan_id = ? AND project_id = ? ORDER BY id", (scan_id, project_id))]

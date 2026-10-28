@@ -138,6 +138,7 @@
   .ok { color: var(--good-text); } .bad { color: var(--critical-text); }
   .empty { padding: 60px 0; text-align: center; color: var(--muted); }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .rule { color: var(--muted); font-size: 11.5px; margin-top: 2px; word-break: break-all; }
   .hidden { display: none !important; }
   details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-top: 10px; }
 </style>
@@ -209,6 +210,12 @@
         <h2>Latest scan findings</h2>
         <p class="sub" id="f-sub"></p>
         <div class="tools">
+          <label class="field">View
+            <select id="viewmode">
+              <option value="groups" selected>Grouped by place to fix</option>
+              <option value="all">Every finding</option>
+            </select>
+          </label>
           <label class="field">Minimum severity
             <select id="sevfilter">
               <option value="0">All</option><option value="1">Low and up</option>
@@ -221,7 +228,7 @@
           </label>
         </div>
         <div class="scroll"><table id="findings">
-          <thead><tr><th>Severity</th><th>Layer</th><th>Where</th><th>What</th><th>Scanner</th></tr></thead>
+          <thead></thead>
           <tbody></tbody>
         </table></div>
       </div>
@@ -563,7 +570,8 @@ function renderKpis(scans) {
   kpi(box, "Blocking findings", document.createTextNode(String(last.blocking_count)),
       diff(last.blocking_count, prev ? { v: prev.blocking_count } : null));
   kpi(box, "All findings", document.createTextNode(String(last.total)),
-      last.new === null ? "First scan, nothing to compare" : `${last.new} new, ${last.fixed} fixed`);
+      (latest && latest.problems ? `in ${latest.problems.length} places to fix. ` : "")
+        + (last.new === null ? "First scan." : `${last.new} new, ${last.fixed} fixed.`));
   const broken = LAYERS.filter(([k]) => (last.layers[k] || 0) > 0).length;
   kpi(box, "Layers with findings", document.createTextNode(`${broken} of ${LAYERS.length}`),
       last.first_defective_layer ? `Start fixing at: ${LAYER_NAME[last.first_defective_layer] || last.first_defective_layer}` : "No defective layer");
@@ -585,32 +593,70 @@ function renderHistory(scans) {
     body.appendChild(tr);
   });
 }
+function sevPill(severity) {
+  const cell = el("td"); const pill = el("span", { class: "pill" });
+  const dot = el("i"); dot.style.background = css(SEV_VAR[Math.max(0, SEVERITIES.indexOf(severity))]);
+  pill.appendChild(dot); pill.appendChild(document.createTextNode(severity)); cell.appendChild(pill);
+  return cell;
+}
+function setHead(columns) {
+  const head = document.querySelector("#findings thead");
+  clear(head);
+  const tr = el("tr");
+  columns.forEach(([text, cls]) => tr.appendChild(el("th", cls ? { class: cls } : null, text)));
+  head.appendChild(tr);
+}
 function renderFindings() {
   const body = document.querySelector("#findings tbody");
   clear(body);
   if (!latest) return;
   const min = parseInt($("sevfilter").value, 10), layer = $("layerfilter").value;
-  const rows = latest.findings
-    .filter((f) => SEVERITIES.indexOf(f.severity) >= min && (!layer || f.layer === layer))
-    .sort((a, b) => SEVERITIES.indexOf(b.severity) - SEVERITIES.indexOf(a.severity)
-      || LAYERS.findIndex((l) => l[0] === a.layer) - LAYERS.findIndex((l) => l[0] === b.layer));
+  const grouped = $("viewmode").value === "groups";
   const LIMIT = 200;
-  $("f-sub").textContent = `Scan #${latest.id}: showing ${Math.min(rows.length, LIMIT)} of ${latest.findings.length} findings`
-    + (rows.length > LIMIT ? " (narrow the filters to see the rest)" : "");
-  if (!rows.length) {
-    const tr = el("tr"); const td = el("td", { colspan: 5 }, "Nothing matches these filters.");
+  const keep = (sev, lay) => SEVERITIES.indexOf(sev) >= min && (!layer || lay === layer);
+  const emptyRow = (cols) => {
+    const tr = el("tr"); const td = el("td", { colspan: cols }, "Nothing matches these filters.");
     td.style.color = css("--muted"); tr.appendChild(td); body.appendChild(tr);
+  };
+
+  if (grouped) {
+    setHead([["Worst"], ["Layer"], ["Where"], ["Findings", "num"], ["What"], ["Scanners"]]);
+    const rows = (latest.problems || []).filter((g) => keep(g.worst_severity, g.layer));
+    $("f-sub").textContent = `Scan #${latest.id}: ${rows.length} of ${(latest.problems || []).length} places to fix `
+      + `(${latest.findings.length} findings in total). Several findings often share one fix.`;
+    if (!rows.length) return emptyRow(6);
+    rows.slice(0, LIMIT).forEach((g) => {
+      const tr = el("tr");
+      tr.appendChild(sevPill(g.worst_severity));
+      tr.appendChild(el("td", null, LAYER_NAME[g.layer] || g.layer || "-"));
+      tr.appendChild(el("td", { class: "mono" }, g.where));
+      tr.appendChild(el("td", { class: "num" }, String(g.count)));
+      const what = el("td");
+      what.appendChild(document.createTextNode(g.titles[0].length > 90 ? g.titles[0].slice(0, 87) + "..." : g.titles[0]));
+      if (g.titles.length > 1) what.appendChild(el("div", { class: "rule" }, `+ ${g.titles.length - 1} more: ` + g.titles.slice(1, 3).map((t) => t.length > 40 ? t.slice(0, 37) + "..." : t).join("; ")));
+      tr.appendChild(what);
+      tr.appendChild(el("td", null, g.tools.join(", ")));
+      body.appendChild(tr);
+    });
     return;
   }
+
+  setHead([["Severity"], ["Layer"], ["Where"], ["What"], ["Scanner"]]);
+  const rows = latest.findings
+    .filter((f) => keep(f.severity, f.layer))
+    .sort((a, b) => SEVERITIES.indexOf(b.severity) - SEVERITIES.indexOf(a.severity)
+      || LAYERS.findIndex((l) => l[0] === a.layer) - LAYERS.findIndex((l) => l[0] === b.layer));
+  $("f-sub").textContent = `Scan #${latest.id}: showing ${Math.min(rows.length, LIMIT)} of ${latest.findings.length} findings`
+    + (rows.length > LIMIT ? " (narrow the filters to see the rest)" : "");
+  if (!rows.length) return emptyRow(5);
   rows.slice(0, LIMIT).forEach((f) => {
     const tr = el("tr");
-    const sev = el("td"); const pill = el("span", { class: "pill" });
-    const dot = el("i"); dot.style.background = css(SEV_VAR[Math.max(0, SEVERITIES.indexOf(f.severity))]);
-    pill.appendChild(dot); pill.appendChild(document.createTextNode(f.severity)); sev.appendChild(pill);
-    tr.appendChild(sev);
+    tr.appendChild(sevPill(f.severity));
     tr.appendChild(el("td", null, LAYER_NAME[f.layer] || f.layer || "-"));
     tr.appendChild(el("td", { class: "mono" }, f.file + (f.line ? ":" + f.line : "") + (f.package ? " (" + f.package + ")" : "")));
-    tr.appendChild(el("td", null, f.title.length > 140 ? f.title.slice(0, 137) + "..." : f.title));
+    const what = el("td", null, f.title.length > 140 ? f.title.slice(0, 137) + "..." : f.title);
+    if (f.rule_id) what.appendChild(el("div", { class: "mono rule" }, f.rule_id.length > 70 ? "..." + f.rule_id.slice(-67) : f.rule_id));
+    tr.appendChild(what);
     tr.appendChild(el("td", null, f.tool));
     body.appendChild(tr);
   });
@@ -693,6 +739,7 @@ $("forget").addEventListener("click", () => {
 $("range").addEventListener("change", load);
 $("refresh").addEventListener("click", load);
 $("sevfilter").addEventListener("change", renderFindings);
+$("viewmode").addEventListener("change", renderFindings);
 $("layerfilter").addEventListener("change", renderFindings);
 $("theme").addEventListener("click", () => {
   const dark = css("color-scheme") === "dark" || matchMedia("(prefers-color-scheme: dark)").matches && !document.documentElement.dataset.theme;

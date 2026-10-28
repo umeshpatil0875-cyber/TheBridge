@@ -632,6 +632,22 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(env["SECUREBRIDGE_TOKEN"], "${{ secrets.SECUREBRIDGE_TOKEN }}")
         self.assertNotIn("sb_", self.text)
 
+    def test_every_checkout_drops_its_git_credentials(self):
+        checkouts = [st for job in self.wf["jobs"].values() for st in job["steps"]
+                     if str(st.get("uses", "")).startswith("actions/checkout")]
+        self.assertGreaterEqual(len(checkouts), 3)
+        for step in checkouts:
+            self.assertIs(step.get("with", {}).get("persist-credentials"), False)
+
+    def test_the_pipeline_scans_its_own_workflow_files(self):
+        commands = " ".join(st.get("run", "") for st in self.wf["jobs"]["workflow-lint"]["steps"])
+        self.assertIn("zizmor", commands)
+        self.assertIn(".github/workflows", commands)
+
+    def test_scanner_versions_are_pinned(self):
+        for name in ("GITLEAKS_VERSION", "TRIVY_VERSION", "OPA_VERSION"):
+            self.assertRegex(self.wf["env"][name], r"^\d+\.\d+\.\d+$")
+
     def test_a_policy_job_checks_and_unit_tests_the_rego_files(self):
         job = self.wf["jobs"]["policy"]
         commands = " ".join(s.get("run", "") for s in job["steps"])

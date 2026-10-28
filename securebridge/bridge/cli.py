@@ -14,6 +14,7 @@ import os
 import sys
 
 from . import report
+from .grouping import group_findings
 from .layers import classify, first_defective, summarize
 from .opa import shadow_check
 from .policy import evaluate, load_policy
@@ -124,7 +125,8 @@ def main(argv=None) -> int:
     # 5. Tell the human, then tell the pipeline (via the exit code).
     for r in runs:
         print(f"{r.name:9} {r.status:8} {r.detail}")
-    print(f"\n{len(findings)} finding(s), {len(decision.blocking)} blocking, "
+    problems = len(group_findings([f.to_dict() for f in findings]))
+    print(f"\n{len(findings)} finding(s) in {problems} place(s) to fix, {len(decision.blocking)} blocking, "
           f"{len(decision.waived)} waived, {dropped} duplicate(s) merged")
     print("\nLayers, from code to production:")
     rows = summarize(runs, findings, decision)
