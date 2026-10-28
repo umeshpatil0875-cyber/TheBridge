@@ -37,15 +37,17 @@ env:
   # actually used are printed in the run log (step "Show scanner versions").
   # To make runs repeatable, copy those numbers here, for example "8.30.1".
   # The run summary ends with a "Versions to pin" block you can copy line by line.
-  GITLEAKS_VERSION: ""
-  TRIVY_VERSION: ""
-  OPA_VERSION: ""
+  GITLEAKS_VERSION: "8.30.1"
+  TRIVY_VERSION: "0.76.1"
+  OPA_VERSION: "1.21.4"
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -59,6 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
       - name: Install OPA
         env:
           GH_TOKEN: ${{ github.token }}
@@ -70,6 +74,25 @@ jobs:
       - name: Run the Rego unit tests
         run: opa test policy/ -v
 
+  # Lesson 26: the pipeline is a target too, so scan THIS repository's own workflow files
+  # with zizmor. It runs on the real .github/workflows folder, not on sample-app, so the
+  # deliberately broken specimen is not involved. It runs offline and needs no token.
+  workflow-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install zizmor
+        run: pip install zizmor
+      - name: Show the zizmor version
+        run: zizmor --version
+      - name: Check our own workflow files
+        run: zizmor --offline .github/workflows/
+
   scan:
     needs: test
     runs-on: ubuntu-latest
@@ -78,6 +101,8 @@ jobs:
       security-events: write # needed only to upload SARIF to the Security tab
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # we never push, so the job keeps no git password
 
       - uses: actions/setup-python@v5
         with:
