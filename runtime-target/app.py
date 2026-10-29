@@ -24,6 +24,12 @@ PAGES = {
               b"<button>Log in</button></form></body></html>",
 }
 
+# In hardened mode the login form carries an anti-CSRF token: a secret value the server
+# checks on submit, so another website cannot make your browser send the form for you.
+# (A real app creates a fresh random token per session; this demo uses a fixed one.)
+HARDENED_LOGIN = PAGES["/login"].replace(
+    b"<button>", b"<input type='hidden' name='csrf_token' value='demo-csrf-token'><button>")
+
 HARDENED_HEADERS = {
     # Only load scripts, styles and images from this same site; never be shown in a frame.
     "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; form-action 'self'",
@@ -54,7 +60,8 @@ def make_handler(mode):
             super().end_headers()
 
         def do_GET(self):
-            page = PAGES.get(self.path.split("?")[0])
+            route = self.path.split("?")[0]
+            page = HARDENED_LOGIN if (mode == "hardened" and route == "/login") else PAGES.get(route)
             if page is None:
                 return self.send_error(404)
             self.send_response(200)
